@@ -1,0 +1,52 @@
+# Vector Configuration - Camera Logs Pipeline
+
+[sources.camera_logs]
+type = "http_server"
+address = "0.0.0.0:8080"
+encoding = "json"
+acknowledgements.enabled = true
+
+[transforms.enrich]
+type = "remap"
+inputs = ["camera_logs"]
+source = '''
+  .processed_at = now()
+  
+  # Extract common fields
+  .cam_id = .meta.cam_id
+  .site = .meta.site
+  .status = .meta.status
+  .event_type = .type
+  .timestamp = .meta.ts
+  
+  # Handle METRIC type
+  if .type == "METRIC" {
+    .people_count = .data.people_count
+    .detections_data = .data.detections
+    .detections_count = length(.data.detections) ?? 0
+  }
+  
+  # Handle EVENT type
+  if .type == "EVENT" {
+    .people_count = .event.people_count
+    .detections_data = .event.detections
+    .detections_count = length(.event.detections) ?? 0
+    .triggers = .event.triggers
+    .capture_triggered = .event.capture_triggered
+  }
+  
+  # Remove original nested fields
+  del(.meta)
+  del(.data)
+  del(.event)
+  del(.type)
+'''
+
+[sinks.console]
+type = "console"
+inputs = ["enrich"]
+encoding.codec = "json"
+
+[api]
+enabled = true
+address = "0.0.0.0:8686"
