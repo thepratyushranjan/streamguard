@@ -7,7 +7,7 @@ from typing import List, Dict, Any
 
 from config import get_settings
 from db.connection import get_clickhouse, ClickHouseConnection
-from db.schemas import HealthResponse
+from db.schemas import HealthResponse, CameraEventRequest
 from middleware import log_requests_middleware, global_exception_handler
 
 app = FastAPI(title="FastAPI + ClickHouse", version="1.0.0")
@@ -82,54 +82,88 @@ def get_last_events():
     return {"count": len(last_events), "events": last_events}
 
 
+# Columns matching the Insert order
+CH_COLUMNS = [
+    'cam_id', 'cam_name', 'site', 
+    'detection_count', 'people_count', 
+    'event_type', 'event_status', 
+    'capture_triggered', 'processed_at', 'event_timestamp',
+    'detections.class_id', 'detections.label', 'detections.confidence',
+    'detections.bbox_left', 'detections.bbox_top', 'detections.bbox_width', 'detections.bbox_height',
+    'event_triggers'
+]
+
 @app.post("/events")
-async def process_events(request: Request):
-    """Receive events from Vector"""
-    try:
-        events = await request.json()
-        
-        if not isinstance(events, list):
-            events = [events]
-        
-        processed = []
-        for event in events:
-            meta = event.get("meta", {})
-            event_type = event.get("type")
-            
-            result = {
-                "cam_id": meta.get("cam_id"),
-                "site": meta.get("site"),
-                "status": meta.get("status"),
-                "event_type": event_type,
-                "timestamp": meta.get("ts"),
-                "processed_at": event.get("processed_at")
-            }
-            
-            if event_type == "METRIC":
-                data = event.get("data", {})
-                result["people_count"] = data.get("people_count", 0)
-                result["detections_count"] = len(data.get("detections", []))
-            elif event_type == "EVENT":
-                evt = event.get("event", {})
-                result["people_count"] = evt.get("people_count", 0)
-                result["detections_count"] = len(evt.get("detections", []))
-                result["triggers"] = evt.get("triggers", [])
-                result["capture_triggered"] = evt.get("capture_triggered", False)
-            
-            processed.append(result)
-        
-        response = {
-            "success": True,
-            "events_processed": len(processed),
-            "events": processed
-        }
-        
-        # Store last 10 events for debugging
-        global last_events
-        last_events = (last_events + processed)[-10:]
-        
-        print(f"✓ Processed {len(processed)} events: {[e['cam_id'] for e in processed]}")
-        return response
+def process_events(
+    events: List[CameraEventRequest], 
+    client: Client = Depends(get_clickhouse)
+):
+    """
+    High-performance batch insert for Camera Events.
+    """
+    if not events:
+        return {"processed": 0}
+
+    rows = []
     
+    try:
+        for evt in events:
+            meta = evt.meta
+            payload = evt.payload
+            detections = payload.detections
+            
+            # 1. Pivot Detections for ClickHouse Arrays
+            d_cids = [d.class_id for d in detections]
+            d_lbls = [d.label for d in detections]
+            d_confs = [d.confidence for d in detections]
+            d_left = [d.bbox[0] for d in detections]
+            d_top = [d.bbox[1] for d in detections]
+            d_width = [d.bbox[2] for d in detections]
+            d_height = [d.bbox[3] for d in detections]
+
+            # 2. Build Row
+            row = [
+                meta.cam_id,
+                meta.cam_name,
+                meta.site,
+                len(detections),          
+                payload.people_count,
+                evt.type,                 
+                meta.status,              
+                payload.capture_triggered,
+                int(evt.processed_at),
+                int(meta.ts),             
+                d_cids,
+                d_lbls,
+                d_confs,
+                d_left,
+                d_top,
+                d_width,
+                d_height,
+                payload.triggers
+            ]
+            rows.append(row)
+
+        # 3. Batch Insert
+        client.insert(
+            'camera_events',
+            rows,
+            column_names=CH_COLUMNS
+        )
+
+        # 4. Update Debug Log
+        global last_events
+        new_event_dicts = [e.model_dump() for e in events] 
+        last_events = (new_event_dicts + last_events)[:50]
+
+        print(f"Successfully inserted {len(rows)} events.")
+
+        return {
+            "success": True, 
+            "inserted": len(rows),
+            "cam_ids": [r[0] for r in rows]
+        }
+
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error: {str(e)}")
+        print(f"Insert Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database Insert Failed: {str(e)}")

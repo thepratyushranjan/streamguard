@@ -4,7 +4,7 @@
 import json
 import requests
 
-VECTOR_URL = "http://localhost:8080"
+VECTOR_URL = "http://vector:8080"
 
 def send_to_vector():
     with open("test_data.json", "r") as f:

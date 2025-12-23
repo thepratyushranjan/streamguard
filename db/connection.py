@@ -1,5 +1,8 @@
 import clickhouse_connect
 from clickhouse_connect.driver import Client
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
 from config import get_settings
 from typing import Optional
 
