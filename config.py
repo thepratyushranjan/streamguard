@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     clickhouse_user: str
     clickhouse_password: str
     clickhouse_database: str
+    vector_url: str = "http://vector:8080"
+    camera_logs_path: str = "camera_logs.json"
     
     class Config:
         env_file = ".env"

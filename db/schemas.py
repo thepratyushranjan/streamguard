@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Literal, Union
+from typing import List, Optional, Literal, Union, Dict, Any
 from datetime import datetime
+from dataclasses import dataclass
 
 class HealthResponse(BaseModel):
     status: str
@@ -44,3 +45,13 @@ class CameraEventRequest(BaseModel):
     def payload(self) -> EventData:
         """Helper to get the actual data payload regardless of event type"""
         return self.data or self.event or EventData()
+
+
+@dataclass
+class EventResult:
+    """Encapsulates event processing result"""
+    event_index: int
+    status_code: int | None
+    success: bool
+    enriched_data: Dict[str, Any]
+    error: str | None = None
