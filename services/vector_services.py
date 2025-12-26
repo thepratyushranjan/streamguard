@@ -1,17 +1,6 @@
 #Vector
-from config import get_settings
 from datetime import datetime
-from db.schemas import EventResult
-from typing import Dict, Any, List, Tuple, Optional
-from services.constant import VECTOR_REQUEST_TIMEOUT, HTTP_OK
-from fastapi import HTTPException
-
-import requests
-import json
-import os
-
-settings = get_settings()
-
+from typing import Dict, Any, List, Optional
 
 
 def _extract_detection_data(detections: List[Dict]) -> Dict[str, Any]:
@@ -55,71 +44,6 @@ def extract_enriched_data(event: Dict[str, Any]) -> Dict[str, Any]:
     })
     
     return enriched
-
-
-def _send_event_to_vector(event: Dict[str, Any], index: int) -> EventResult:
-    """Send single event to Vector and return result"""
-    enriched_data = extract_enriched_data(event)
-    
-    try:
-        response = requests.post(
-            settings.vector_url,
-            json=event,
-            headers={"Content-Type": "application/json"},
-            timeout=VECTOR_REQUEST_TIMEOUT
-        )
-        
-        return EventResult(
-            event_index=index + 1,
-            status_code=response.status_code,
-            success=response.status_code == HTTP_OK,
-            enriched_data=enriched_data,
-            error=response.text if response.status_code != HTTP_OK else None
-        )
-        
-    except requests.exceptions.RequestException as e:
-        return EventResult(
-            event_index=index + 1,
-            status_code=None,
-            success=False,
-            enriched_data=enriched_data,
-            error=str(e)
-        )
-
-def _load_camera_logs() -> List[Dict[str, Any]]:
-    """Load and validate camera logs file"""
-    if not os.path.exists(settings.camera_logs_path):
-        raise HTTPException(
-            status_code=404,
-            detail=f"Camera logs file not found: {settings.camera_logs_path}"
-        )
-    
-    try:
-        with open(settings.camera_logs_path, "r") as f:
-            return json.load(f)
-    except json.JSONDecodeError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid JSON in camera logs: {str(e)}"
-        )
-
-
-def _process_results(results: List[EventResult]) -> Tuple[int, int]:
-    """Count successes and errors from results"""
-    success_count = sum(1 for r in results if r.success)
-    error_count = len(results) - success_count
-    return success_count, error_count
-
-
-
-"""
-Camera Detection Data Transformer
-- Integer cam_id starting from 100
-- Production-ready, DRY, optimized
-"""
-
-from datetime import datetime
-from typing import Dict, Any, List, Optional
 
 
 class CameraDataTransformer:
