@@ -3,6 +3,7 @@
 CAMERA_EVENTS_TABLE = """
 CREATE TABLE IF NOT EXISTS camera_events (
     -- Primary identifiers
+    event_id UUID DEFAULT generateUUIDv4(),
     cam_id UInt16,
     cam_name LowCardinality(String),
     site LowCardinality(String),
@@ -31,6 +32,12 @@ CREATE TABLE IF NOT EXISTS camera_events (
     
     -- Event triggers
     event_triggers Array(LowCardinality(String)) DEFAULT [],
+
+    -- Recognition Data
+    display_label Array(LowCardinality(String)) DEFAULT [],
+    `recognition.identity` Array(LowCardinality(String)) DEFAULT [],
+    `recognition.confidence` Array(Float32) DEFAULT [],
+    `recognition.identity_id` Array(UInt32) DEFAULT [],
     
     -- [UPDATED] Auto-calculated columns that ARE visible in the table
     event_trigger_count UInt8 DEFAULT length(event_triggers),
@@ -44,7 +51,7 @@ CREATE TABLE IF NOT EXISTS camera_events (
     
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMMDD(toDateTime(event_timestamp))
-ORDER BY (site, cam_id, event_timestamp)
+ORDER BY (site, cam_id, event_timestamp, event_id)
 SETTINGS index_granularity = 8192
 """
 
@@ -54,6 +61,7 @@ SCHEMAS = [
 
 # Column metadata for documentation/validation
 COLUMN_METADATA = {
+    "event_id": {"type": "UUID", "description": "Unique event identifier", "pk": True},
     "cam_id": {"type": "UInt16", "description": "Camera identifier", "pk": True},
     "cam_name": {"type": "LowCardinality(String)", "description": "Camera name"},
     "site": {"type": "LowCardinality(String)", "description": "Site/location", "pk": True},
@@ -68,4 +76,8 @@ COLUMN_METADATA = {
     "high_confidence_count": {"type": "UInt16", "description": "MATERIALIZED: count where confidence > 0.7"},
     "event_trigger_count": {"type": "UInt8", "description": "Auto-calculated: length(event_triggers)"},
     "high_confidence_count": {"type": "UInt16", "description": "Auto-calculated: count where confidence > 0.7"},
+    "display_label": {"type": "LowCardinality(String)", "description": "Display label for the event"},
+    "recognition.identity": {"type": "LowCardinality(String)", "description": "Recognized identity name"},
+    "recognition.confidence": {"type": "Float32", "description": "Confidence score of recognition"},
+    "recognition.identity_id": {"type": "UInt32", "description": "ID of the recognized identity"},
 }

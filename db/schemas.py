@@ -16,11 +16,18 @@ class Detection(BaseModel):
     confidence: float
     bbox: List[int] = Field(..., min_items=4, max_items=4) # [left, top, width, height]
 
+class RecognitionData(BaseModel):
+    identity: str = ""
+    confidence: float = 0.0
+    identity_id: int = 0
+    display_label: str = ""
+
 class EventData(BaseModel):
     people_count: int = 0
     detections: List[Detection] = []
     triggers: List[str] = []
     capture_triggered: bool = False
+    recognitions: List[RecognitionData] = []
 
 class EventMeta(BaseModel):
     cam_id: int

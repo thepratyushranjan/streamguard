@@ -1,6 +1,6 @@
 #Vector
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 
 
 def _extract_detection_data(detections: List[Dict]) -> Dict[str, Any]:
@@ -29,12 +29,28 @@ def extract_enriched_data(event: Dict[str, Any]) -> Dict[str, Any]:
     
     # Get event-specific data
     source = event.get("data") or event.get("event") or {}
-    detections = source.get("detections", [])
+    raw_detections = source.get("detections", [])
+    
+    detections = []
+    recognitions_data = []
+    
+    for item in raw_detections:
+        if "recognition" in item:
+            rec = item.get("recognition", {})
+            recognitions_data.append({
+                "display_label": item.get("display_label", ""),
+                "identity": rec.get("identity", ""),
+                "confidence": rec.get("confidence", 0.0),
+                "identity_id": rec.get("identity_id", 0)
+            })
+        
+        detections.append(item)
     
     # Add common fields
     enriched.update({
         "people_count": source.get("people_count"),
-        **_extract_detection_data(detections)
+        **_extract_detection_data(detections),
+        "recognitions_data": recognitions_data
     })
     
     # Add optional fields from source regardless of event type
@@ -73,10 +89,12 @@ class CameraDataTransformer:
         return cam_id
 
     @staticmethod
-    def _to_unix_timestamp(timestamp_str: str) -> int:
-        """Convert ISO-8601 timestamp to Unix seconds (UTC)."""
+    def _to_unix_timestamp(value: Union[str, int, float]) -> int:
+        """Convert ISO-8601 timestamp or raw timestamp to Unix seconds (UTC)."""
+        if isinstance(value, (int, float)):
+            return int(value)
         return int(
-            datetime.fromisoformat(timestamp_str.replace("Z", "+00:00")).timestamp()
+            datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
         )
 
     @staticmethod
@@ -128,12 +146,11 @@ class CameraDataTransformer:
                             self._transform_detection(det)
                             for det in event.get("detections_data", [])
                         ],
+                        "recognitions": event.get("recognitions_data") or [],
                     },
                 }
             )
 
         return transformed_events
-
-
 
 transformer = CameraDataTransformer()

@@ -54,7 +54,11 @@ def process_camera_events(events: List[CameraEventRequest], client: Client) -> D
                 d_top,
                 d_width,
                 d_height,
-                payload.triggers
+                payload.triggers,
+                [r.display_label for r in payload.recognitions],
+                [r.identity for r in payload.recognitions],
+                [r.confidence for r in payload.recognitions],
+                [r.identity_id for r in payload.recognitions]
             ]
             rows.append(row)
 

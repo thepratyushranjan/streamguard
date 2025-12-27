@@ -1,0 +1,20 @@
+{
+    "dbcode.connections": [
+        {
+            "connectionId": "1xNj5QZtHZNXD9DqTOblS",
+            "name": "mydb",
+            "driver": "clickhouse",
+            "color": "#004A37",
+            "host": "localhost",
+            "port": 8123,
+            "ssl": false,
+            "username": "myuser",
+            "password": "",
+            "savePassword": "secretStorage",
+            "readOnly": false,
+            "postConnectionSqlType": "inline",
+            "requestTimeout": 30,
+            "connectionType": "host"
+        }
+    ]
+}
