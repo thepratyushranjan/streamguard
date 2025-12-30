@@ -109,8 +109,9 @@ def trigger_vector_pipeline(
             }
             for i, event in enumerate(events)
         ]
+        print(f'''payload_input: {results_dict}''')
         transformed_data = transformer.transform({"results": results_dict})
-        print(transformed_data)
+        print(f'''payload_transformed: {transformed_data}''')
         # Convert to Pydantic models and insert into ClickHouse
         camera_events = [CameraEventRequest(**item) for item in transformed_data]
         db_response = process_camera_events(camera_events, client)

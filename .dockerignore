@@ -11,3 +11,4 @@ venv
 *.md
 LICENSE
 docker-compose.yml
+vertex-ai-user.json

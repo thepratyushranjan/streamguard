@@ -32,7 +32,7 @@ class EventData(BaseModel):
 class EventMeta(BaseModel):
     cam_id: int
     site: str
-    status: Literal['SAFE', 'WARNING', 'CRITICAL']
+    status: str
     ts: float # Unix timestamp
     cam_name: Optional[str] = "Unknown"
 

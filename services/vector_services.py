@@ -4,7 +4,6 @@ from typing import Dict, Any, List, Optional, Union
 
 
 def _extract_detection_data(detections: List[Dict]) -> Dict[str, Any]:
-    """Extract common detection fields (DRY)"""
     return {
         "detections_data": detections,
         "detections_count": len(detections)
@@ -21,6 +20,7 @@ def extract_enriched_data(event: Dict[str, Any]) -> Dict[str, Any]:
     # Base enriched data
     enriched = {
         "cam_id": meta.get("cam_id"),
+        "cam_name": meta.get("cam_name"),
         "site": meta.get("site"),
         "status": meta.get("status"),
         "event_type": event_type,
@@ -101,11 +101,18 @@ class CameraDataTransformer:
     def _transform_detection(det: Dict[str, Any]) -> Dict[str, Any]:
         """Transform single detection object."""
         bbox = det["bbox"]
+        
+        # Handle both list [x, y, w, h] and dict {left, top, width, height} formats
+        if isinstance(bbox, list):
+            final_bbox = bbox
+        else:
+            final_bbox = [bbox["left"], bbox["top"], bbox["width"], bbox["height"]]
+            
         return {
             "class_id": det["class_id"],
             "label": det["label"],
             "confidence": det["confidence"],
-            "bbox": [bbox["left"], bbox["top"], bbox["width"], bbox["height"]],
+            "bbox": final_bbox,
         }
 
     # ---------- Public API ----------
@@ -123,7 +130,8 @@ class CameraDataTransformer:
         transformed_events: List[Dict[str, Any]] = []
 
         for event in input_data.get("results", []):
-            cam_name = event["cam_id"]
+            # Prefer explicit cam_name, fallback to stringified cam_id
+            cam_name = event.get("cam_name") or str(event["cam_id"])
             cam_id = self._get_or_create_cam_id(cam_name)
             processed_at = self._to_unix_timestamp(event["timestamp"])
 
