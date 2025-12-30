@@ -1,19 +1,19 @@
 import os
 import shutil
 from google.cloud import storage
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+from config import get_settings
+settings = get_settings()
 
 # Configuration
-CAPTURES_DIR = "/home/pratyush/Desktop/Roboi/streamguard/captures"
-# Create a separate directory for completed events so we don't re-upload
-COMPLETED_DIR = "/home/pratyush/Desktop/Roboi/streamguard/captures_uploaded"
-BUCKET_NAME = "roboi-event-captures"
+CAPTURES_DIR = settings.captures_dir
+BUCKET_NAME = settings.bucket_name
 
 # Initialize GCP Client (Ensure GOOGLE_APPLICATION_CREDENTIALS is set in env)
-storage_client = storage.Client()
+if settings.google_application_credentials:
+    storage_client = storage.Client.from_service_account_json(settings.google_application_credentials)
+else:
+    storage_client = storage.Client()
 bucket = storage_client.bucket(BUCKET_NAME)
 
 def upload_directory(dir_path, event_name):
@@ -25,14 +25,11 @@ def upload_directory(dir_path, event_name):
             blob.upload_from_filename(file_path)
             print(f"Uploaded {filename}")
     
-    # Move to completed folder to prevent re-processing
-    shutil.move(dir_path, os.path.join(COMPLETED_DIR, event_name))
-    print(f"Moved {event_name} to completed directory.")
+    # Delete directory to prevent re-processing
+    shutil.rmtree(dir_path)
+    print(f"Deleted {event_name} after successful upload.")
 
 def check_and_upload():
-    # Create completed dir if not exists
-    os.makedirs(COMPLETED_DIR, exist_ok=True)
-
     # Scan all directories in captures
     for event_name in os.listdir(CAPTURES_DIR):
         event_path = os.path.join(CAPTURES_DIR, event_name)
