@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     captures_dir: str = os.path.join(BASE_DIR, "captures")
     bucket_name: str
     event_prefix: str
+    telegram_base_url: str
+
+    @property
+    def telegram_url(self) -> str:
+        return f"{self.telegram_base_url.rstrip('/')}/api/v1/telegram/send-message"
     
     class Config:
         env_file = ".env"

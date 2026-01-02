@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, Depends
 import os
+import requests
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from clickhouse_connect.driver import Client
@@ -15,8 +16,6 @@ from middleware import log_requests_middleware, global_exception_handler
 
 app = FastAPI(title="FastAPI + ClickHouse", version="1.0.0")
 settings = get_settings()
-
-
 
 
 # CORS Middleware
@@ -116,32 +115,45 @@ def trigger_vector_pipeline(
         print(f'''payload_input: {results_dict}''')
         transformed_data = transformer.transform({"results": results_dict})
         print(f'''payload_transformed: {transformed_data}''')
-        
-        # Create directory for each event
-        for item in transformed_data:
+
+        # Check for EVENT type to trigger Telegram notification
+        if any(item.get("type") == "EVENT" for item in transformed_data):
             try:
-                # Extract required fields
-                meta = item.get("meta", {})
-                event_type = item.get("type", "Unknown")
-                site = meta.get("site", "Unknown")
-                cam_id = meta.get("cam_id", "Unknown")
-                status = meta.get("status", "Unknown")
-                ts = meta.get("ts", "Unknown")
+                response = requests.post(
+                    settings.telegram_url,
+                    json={"message": "hello dude"},
+                    timeout=5
+                )
+                response.raise_for_status()
+                print(f"Telegram notification sent: {response.text}")
+            except requests.RequestException as e:
+                print(f"Failed to send Telegram notification: {e}")
+        
+        # # Create directory for each event
+        # for item in transformed_data:
+        #     try:
+        #         # Extract required fields
+        #         meta = item.get("meta", {})
+        #         event_type = item.get("type", "Unknown")
+        #         site = meta.get("site", "Unknown")
+        #         cam_id = meta.get("cam_id", "Unknown")
+        #         status = meta.get("status", "Unknown")
+        #         ts = meta.get("ts", "Unknown")
                 
-                # Construct directory name
-                # Format: Ind_state_distt_type_site_cam_id_status_ts
-                dir_name = f"{settings.event_prefix}{event_type}_{site}_{cam_id}_{status}_{ts}"
-                event_dir = os.path.join(settings.captures_dir, dir_name)
+        #         # Construct directory name
+        #         # Format: Ind_state_distt_type_site_cam_id_status_ts
+        #         dir_name = f"{settings.event_prefix}{event_type}_{site}_{cam_id}_{status}_{ts}"
+        #         event_dir = os.path.join(settings.captures_dir, dir_name)
                 
-                # Create directory only if event_type is 'EVENT'
-                if event_type == "EVENT":
-                    os.makedirs(event_dir, exist_ok=True)
-                    print(f"Created directory: {event_dir}")
-                else:
-                    print(f"Skipping directory creation for event types: {event_type}")
+        #         # Create directory only if event_type is 'EVENT'
+        #         if event_type == "EVENT":
+        #             os.makedirs(event_dir, exist_ok=True)
+        #             print(f"Created directory: {event_dir}")
+        #         else:
+        #             print(f"Skipping directory creation for event types: {event_type}")
                 
-            except Exception as e:
-                print(f"Error creating directory: {e}")
+        #     except Exception as e:
+        #         print(f"Error creating directory: {e}")
 
         # Convert to Pydantic models and insert into ClickHouse
         camera_events = [CameraEventRequest(**item) for item in transformed_data]
