@@ -17,8 +17,7 @@ class Settings(BaseSettings):
     captures_dir: str = os.path.join(BASE_DIR, "captures")
     bucket_name: str
     event_prefix: str
-    telegram_base_url: str
-    validation_base_url: str = "http://host.docker.internal:8069"
+    validation_base_url: str
 
     
     @property
