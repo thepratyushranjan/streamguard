@@ -1,6 +1,5 @@
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, BackgroundTasks
 import os
-import requests
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from clickhouse_connect.driver import Client
@@ -8,6 +7,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Union
 from services.vector_services import transformer, extract_enriched_data
 from services.events_services import process_camera_events, get_recent_events
+from services.validation_service import validation_service
 from config import get_settings
 from db.connection import get_clickhouse, ClickHouseConnection
 from db.schemas import HealthResponse, CameraEventRequest
@@ -37,22 +37,6 @@ app.add_middleware(
 app.middleware("http")(log_requests_middleware)
 app.exception_handler(Exception)(global_exception_handler)
 
-
-@app.on_event("startup")
-async def startup():
-    """Test connection on startup"""
-    if ClickHouseConnection.test_connection():
-        print(f"✓ Connected to ClickHouse at {settings.clickhouse_host}:{settings.clickhouse_port}")
-    else:
-        print("✗ Failed to connect to ClickHouse")
-    print("✓ FastAPI started - ready to receive events from Vector")
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Close connection on shutdown"""
-    ClickHouseConnection.close()
-    print("✓ ClickHouse connection closed")
 
 
 @app.get("/")
@@ -85,11 +69,31 @@ def get_last_events():
     return get_recent_events()
 
 
+@app.on_event("startup")
+async def startup():
+    """Test connection on startup and initialize services"""
+    if ClickHouseConnection.test_connection():
+        print(f"✓ Connected to ClickHouse at {settings.clickhouse_host}:{settings.clickhouse_port}")
+    else:
+        print("✗ Failed to connect to ClickHouse")
+    
+    # Initialize validation service HTTP client
+    await validation_service.initialize()
+    print("✓ FastAPI started - ready to receive events from Vector")
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Close connections on shutdown"""
+    await validation_service.shutdown()
+    ClickHouseConnection.close()
+    print("✓ ClickHouse connection closed")
+
 
 # Vector Trigger
 
 @app.post("/vector")
-def trigger_vector_pipeline(
+async def trigger_vector_pipeline(
     events: Union[List[Dict[str, Any]], Dict[str, Any]], 
     client: Client = Depends(get_clickhouse)
 ):
@@ -116,18 +120,8 @@ def trigger_vector_pipeline(
         transformed_data = transformer.transform({"results": results_dict})
         print(f'''payload_transformed: {transformed_data}''')
 
-        # Check for EVENT type to trigger Telegram notification
-        if any(item.get("type") == "EVENT" for item in transformed_data):
-            try:
-                response = requests.post(
-                    settings.telegram_url,
-                    json={"message": "hello dude"},
-                    timeout=5
-                )
-                response.raise_for_status()
-                print(f"Telegram notification sent: {response.text}")
-            except requests.RequestException as e:
-                print(f"Failed to send Telegram notification: {e}")
+        # Schedule async validation tasks (fire-and-forget, non-blocking)
+        validation_service.schedule_validation_tasks(transformed_data)
         
         # # Create directory for each event
         # for item in transformed_data:

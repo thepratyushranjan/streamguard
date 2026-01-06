@@ -18,10 +18,12 @@ class Settings(BaseSettings):
     bucket_name: str
     event_prefix: str
     telegram_base_url: str
+    validation_base_url: str = "http://host.docker.internal:8069"
 
+    
     @property
-    def telegram_url(self) -> str:
-        return f"{self.telegram_base_url.rstrip('/')}/api/v1/telegram/send-message"
+    def validation_url(self) -> str:
+        return f"{self.validation_base_url.rstrip('/')}/api/v1/validation/validate"
     
     class Config:
         env_file = ".env"

@@ -13,19 +13,12 @@ def clean_database():
             return
 
         client = ClickHouseConnection.get_client()
-        logger.info("Attempting to drop corrupted 'camera_events'...")
+        logger.info("Attempting to drop 'video_analytics_logs' table...")
         
-        # 1. Drop as VIEW first (fixes the Code: 60 error)
+        # Drop the video_analytics_logs table
         try:
-            client.command("DROP VIEW IF EXISTS camera_events")
-            logger.info("✓ Executed DROP VIEW")
-        except Exception as e:
-            logger.warning(f"DROP VIEW warning: {e}")
-
-        # 2. Drop as TABLE (to be safe)
-        try:
-            client.command("DROP TABLE IF EXISTS camera_events")
-            logger.info("✓ Executed DROP TABLE")
+            client.command("DROP TABLE IF EXISTS video_analytics_logs")
+            logger.info("✓ Dropped video_analytics_logs table")
         except Exception as e:
             logger.warning(f"DROP TABLE warning: {e}")
 

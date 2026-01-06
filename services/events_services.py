@@ -27,26 +27,41 @@ def process_camera_events(events: List[CameraEventRequest], client: Client) -> D
             detections = payload.detections
             
             # 1. Pivot Detections for ClickHouse Arrays
-            d_cids = [d.class_id for d in detections]
-            d_lbls = [d.label for d in detections]
-            d_confs = [d.confidence for d in detections]
-            d_left = [d.bbox[0] for d in detections]
-            d_top = [d.bbox[1] for d in detections]
-            d_width = [d.bbox[2] for d in detections]
-            d_height = [d.bbox[3] for d in detections]
+            d_cids = [d.class_id or 0 for d in detections]
+            d_lbls = [d.label or "" for d in detections]
+            d_confs = [d.confidence or 0.0 for d in detections]
+            d_left = [d.bbox[0] if d.bbox and len(d.bbox) > 0 else 0 for d in detections]
+            d_top = [d.bbox[1] if d.bbox and len(d.bbox) > 1 else 0 for d in detections]
+            d_width = [d.bbox[2] if d.bbox and len(d.bbox) > 2 else 0 for d in detections]
+            d_height = [d.bbox[3] if d.bbox and len(d.bbox) > 3 else 0 for d in detections]
+            d_object_ids = [d.object_id or 0 for d in detections]
+            
+            # Extract recognition data from detections
+            display_labels = [d.display_label or "" for d in detections]
+            rec_identities = [d.recognition.get("identity", "") if d.recognition else "" for d in detections]
+            rec_confidences = [d.recognition.get("confidence", 0.0) if d.recognition else 0.0 for d in detections]
+            rec_identity_ids = [d.recognition.get("identity_id", 0) if d.recognition else 0 for d in detections]
 
-            # 2. Build Row
+            # 2. Build Row (ensure no None values)
             row = [
-                meta.cam_id,
-                meta.cam_name,
-                meta.site,
+                meta.cam_id or 0,
+                meta.cam_name or "Unknown",
+                meta.site_name or "",
+                meta.site_id or "",
+                meta.latitude or 0.0,
+                meta.longitude or 0.0,
+                meta.country or "",
+                meta.state or "",
+                meta.district or "",
                 len(detections),          
-                payload.people_count,
-                evt.type,                 
-                meta.status,              
-                payload.capture_triggered,
-                int(evt.processed_at),
-                int(meta.ts),             
+                payload.people_count or 0,
+                payload.video_count or 0,
+                payload.image_count or 0,
+                evt.type or "metric",                 
+                payload.status or "safe",              
+                payload.capture_triggered or False,
+                int(evt.processed_at or 0),
+                int(meta.ts or 0),             
                 d_cids,
                 d_lbls,
                 d_confs,
@@ -54,17 +69,23 @@ def process_camera_events(events: List[CameraEventRequest], client: Client) -> D
                 d_top,
                 d_width,
                 d_height,
-                payload.triggers,
-                [r.display_label for r in payload.recognitions],
-                [r.identity for r in payload.recognitions],
-                [r.confidence for r in payload.recognitions],
-                [r.identity_id for r in payload.recognitions]
+                d_object_ids,
+                payload.triggers or [],
+                payload.triaged_by or "",
+                payload.triage_notes or "",
+                int(payload.triage_timestamp or 0),
+                payload.ai_insights or "",
+                payload.evidence_path or "",
+                display_labels,
+                rec_identities,
+                rec_confidences,
+                rec_identity_ids
             ]
             rows.append(row)
 
         # 3. Batch Insert
         client.insert(
-            'camera_events',
+            'video_analytics_logs',
             rows,
             column_names=CH_COLUMNS
         )

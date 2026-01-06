@@ -15,14 +15,21 @@ def extract_enriched_data(event: Dict[str, Any]) -> Dict[str, Any]:
     Mimics the vector.toml transform behavior.
     """
     meta = event.get("meta", {})
+    data = event.get("data", {})
     event_type = event.get("type")
     
     # Base enriched data
     enriched = {
         "cam_id": meta.get("cam_id"),
         "cam_name": meta.get("cam_name"),
-        "site": meta.get("site"),
-        "status": meta.get("status"),
+        "site_name": meta.get("site_name") or meta.get("site", ""),
+        "site_id": meta.get("site_id", ""),
+        "latitude": meta.get("latitude", 0.0),
+        "longitude": meta.get("longitude", 0.0),
+        "country": meta.get("country", ""),
+        "state": meta.get("state", ""),
+        "district": meta.get("district", ""),
+        "status": data.get("status") or meta.get("status", "safe"),
         "event_type": event_type,
         "timestamp": meta.get("ts"),
     }
@@ -49,6 +56,8 @@ def extract_enriched_data(event: Dict[str, Any]) -> Dict[str, Any]:
     # Add common fields
     enriched.update({
         "people_count": source.get("people_count"),
+        "video_count": source.get("video_count", 0),
+        "image_count": source.get("image_count", 0),
         **_extract_detection_data(detections),
         "recognitions_data": recognitions_data
     })
@@ -56,7 +65,12 @@ def extract_enriched_data(event: Dict[str, Any]) -> Dict[str, Any]:
     # Add optional fields from source regardless of event type
     enriched.update({
         "triggers": source.get("triggers", []),
-        "capture_triggered": source.get("capture_triggered", False)
+        "capture_triggered": source.get("capture_triggered", False),
+        "triaged_by": source.get("triaged_by", ""),
+        "triage_notes": source.get("triage_notes", ""),
+        "triage_timestamp": source.get("triage_timestamp", 0.0),
+        "ai_insights": source.get("ai_insights", ""),
+        "evidence_path": source.get("evidence_path", "")
     })
     
     return enriched
@@ -107,12 +121,18 @@ class CameraDataTransformer:
             final_bbox = bbox
         else:
             final_bbox = [bbox["left"], bbox["top"], bbox["width"], bbox["height"]]
+        
+        # Extract recognition data if present
+        recognition = det.get("recognition", {})
             
         return {
             "class_id": det["class_id"],
             "label": det["label"],
             "confidence": det["confidence"],
             "bbox": final_bbox,
+            "object_id": det.get("object_id", ""),
+            "display_label": det.get("display_label", ""),
+            "recognition": recognition,
         }
 
     # ---------- Public API ----------
@@ -142,14 +162,28 @@ class CameraDataTransformer:
                     "meta": {
                         "cam_id": cam_id,
                         "cam_name": cam_name,
-                        "site": event["site"],
-                        "status": event["status"],
+                        "site_name": event.get("site_name", ""),
+                        "site_id": event.get("site_id", ""),
+                        "latitude": event.get("latitude", 0.0),
+                        "longitude": event.get("longitude", 0.0),
+                        "country": event.get("country", ""),
+                        "state": event.get("state", ""),
+                        "district": event.get("district", ""),
+                        "status": event.get("status", "safe"),
                         "ts": processed_at,
                     },
                     "data": {
                         "people_count": event["people_count"],
+                        "video_count": event.get("video_count", 0),
+                        "image_count": event.get("image_count", 0),
                         "triggers": event.get("triggers", []),
                         "capture_triggered": event.get("capture_triggered", False),
+                        "status": event.get("status", "safe"),
+                        "triaged_by": event.get("triaged_by", ""),
+                        "triage_notes": event.get("triage_notes", ""),
+                        "triage_timestamp": event.get("triage_timestamp", 0.0),
+                        "ai_insights": event.get("ai_insights", ""),
+                        "evidence_path": event.get("evidence_path", ""),
                         "detections": [
                             self._transform_detection(det)
                             for det in event.get("detections_data", [])
