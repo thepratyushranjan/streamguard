@@ -100,6 +100,10 @@ class ValidationService:
         async with self._validation_semaphore:
             for attempt in range(max_retries):
                 try:
+                    # Debug logging
+                    print(f"→ Validation URL: {self._settings.validation_url}")
+                    print(f"→ Validation Payload: {validation_payload}")
+                    
                     response = await self.http_client.post(
                         self._settings.validation_url,
                         json=validation_payload,
@@ -113,6 +117,7 @@ class ValidationService:
                     print(f"⚠ Validation timeout (attempt {attempt + 1}/{max_retries}): {event_folder}")
                 except httpx.HTTPStatusError as e:
                     print(f"✗ Validation HTTP error {e.response.status_code}: {event_folder}")
+                    print(f"✗ Response body: {e.response.text}")  # Show error details
                     if e.response.status_code < 500:  # Client error - don't retry
                         return
                 except Exception as e:

@@ -213,3 +213,4 @@ vertex-ai-user.json
 # Project specific
 *.md
 .git
+awscliv2.zip

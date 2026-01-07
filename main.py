@@ -121,34 +121,10 @@ async def trigger_vector_pipeline(
         print(f'''payload_transformed: {transformed_data}''')
 
         # Schedule async validation tasks (fire-and-forget, non-blocking)
-        validation_service.schedule_validation_tasks(transformed_data)
-        
-        # # Create directory for each event
-        # for item in transformed_data:
-        #     try:
-        #         # Extract required fields
-        #         meta = item.get("meta", {})
-        #         event_type = item.get("type", "Unknown")
-        #         site = meta.get("site", "Unknown")
-        #         cam_id = meta.get("cam_id", "Unknown")
-        #         status = meta.get("status", "Unknown")
-        #         ts = meta.get("ts", "Unknown")
-                
-        #         # Construct directory name
-        #         # Format: Ind_state_distt_type_site_cam_id_status_ts
-        #         dir_name = f"{settings.event_prefix}{event_type}_{site}_{cam_id}_{status}_{ts}"
-        #         event_dir = os.path.join(settings.captures_dir, dir_name)
-                
-        #         # Create directory only if event_type is 'EVENT'
-        #         if event_type == "EVENT":
-        #             os.makedirs(event_dir, exist_ok=True)
-        #             print(f"Created directory: {event_dir}")
-        #         else:
-        #             print(f"Skipping directory creation for event types: {event_type}")
-                
-        #     except Exception as e:
-        #         print(f"Error creating directory: {e}")
-
+        # Only validate events with type "event" or "ai-info"
+        if transformed_data and transformed_data[0].get("type", "").lower() in ("event", "ai-info"):
+            validation_service.schedule_validation_tasks(transformed_data)
+            
         # Convert to Pydantic models and insert into ClickHouse
         camera_events = [CameraEventRequest(**item) for item in transformed_data]
         db_response = process_camera_events(camera_events, client)
