@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Union
 from services.vector_services import transformer, extract_enriched_data
 from services.events_services import process_camera_events, get_recent_events
 from services.validation_service import validation_service
+from services.ai_validation_services import ai_validation_service
 from config import get_settings
 from db.connection import get_clickhouse, ClickHouseConnection
 from db.schemas import HealthResponse, CameraEventRequest
@@ -122,8 +123,11 @@ async def trigger_vector_pipeline(
 
         # Schedule async validation tasks (fire-and-forget, non-blocking)
         # Only validate events with type "event" or "ai-info"
-        if transformed_data and transformed_data[0].get("type", "").lower() in ("event", "ai-info"):
+        if transformed_data and transformed_data[0].get("type", "").lower() in ("event"):
             validation_service.schedule_validation_tasks(transformed_data)
+
+        if transformed_data and transformed_data[0].get("type", "").lower() in ("ai-info"):
+            ai_validation_service.schedule_ai_validation_tasks(transformed_data)
             
         # Convert to Pydantic models and insert into ClickHouse
         camera_events = [CameraEventRequest(**item) for item in transformed_data]
