@@ -4,6 +4,7 @@ HTTP_OK = 200
 
 # ClickHouse Constants
 CH_COLUMNS = [
+    'company_id', 'device_id',
     'cam_id', 'cam_name', 'site_name', 'site_id',
     'latitude', 'longitude', 'country', 'state', 'district',
     'detection_count', 'people_count', 'video_count', 'image_count',

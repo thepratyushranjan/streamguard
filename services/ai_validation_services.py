@@ -6,6 +6,9 @@ from typing import Dict, Any, List, Optional
 import httpx
 
 from config import get_settings
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class AIValidationService:
@@ -73,14 +76,14 @@ class AIValidationService:
     async def initialize(self) -> None:
         """Initialize the HTTP client (call on app startup)."""
         _ = self.http_client
-        print("✓ AI Validation service HTTP client initialized")
+        logger.info("AI Validation service HTTP client initialized")
     
     async def shutdown(self) -> None:
         """Close HTTP client gracefully (call on app shutdown)."""
         if self._http_client is not None:
             await self._http_client.aclose()
             self._http_client = None
-            print("✓ AI Validation service HTTP client closed")
+            logger.info("AI Validation service HTTP client closed")
     
     async def _trigger_ai_validation(
         self, 
@@ -100,9 +103,8 @@ class AIValidationService:
         async with self._validation_semaphore:
             for attempt in range(max_retries):
                 try:
-                    # Debug logging
-                    print(f"→ AI Validation URL: {self._settings.ai_info_validation_url}")
-                    print(f"→ AI Validation Payload: {validation_payload}")
+                    logger.debug(f"AI Validation URL: {self._settings.ai_info_validation_url}")
+                    logger.debug(f"AI Validation Payload: {validation_payload}")
                     
                     response = await self.http_client.post(
                         self._settings.ai_info_validation_url,
@@ -110,25 +112,25 @@ class AIValidationService:
                         headers={"Content-Type": "application/json"}
                     )
                     response.raise_for_status()
-                    print(f"✓ AI Validation API success for: {event_folder}")
+                    logger.info(f"AI Validation API success for: {event_folder}")
                     return
                     
                 except httpx.TimeoutException:
-                    print(f"⚠ AI Validation timeout (attempt {attempt + 1}/{max_retries}): {event_folder}")
+                    logger.warning(f"AI Validation timeout (attempt {attempt + 1}/{max_retries}): {event_folder}")
                 except httpx.HTTPStatusError as e:
-                    print(f"✗ AI Validation HTTP error {e.response.status_code}: {event_folder}")
-                    print(f"✗ Response body: {e.response.text}")  # Show error details
+                    logger.error(f"AI Validation HTTP error {e.response.status_code}: {event_folder}")
+                    logger.error(f"Response body: {e.response.text}")
                     if e.response.status_code < 500:  # Client error - don't retry
                         return
                 except Exception as e:
-                    print(f"✗ AI Validation failed (attempt {attempt + 1}/{max_retries}): {e}")
+                    logger.error(f"AI Validation failed (attempt {attempt + 1}/{max_retries}): {e}")
                 
                 # Exponential backoff before retry
                 if attempt < max_retries - 1:
                     wait_time = 2 ** attempt  # 1s, 2s, 4s
                     await asyncio.sleep(wait_time)
             
-            print(f"✗ AI Validation failed after {max_retries} retries: {event_folder}")
+            logger.error(f"AI Validation failed after {max_retries} retries: {event_folder}")
     
     @staticmethod
     def _build_ai_validation_payload(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -143,7 +145,7 @@ class AIValidationService:
         """
         data = item.get("data", {})
         evidence_path = data.get("evidence_path", "")
-        print(f"""file_path:{evidence_path}""")
+        logger.debug(f"file_path: {evidence_path}")
         event_folder = evidence_path.rstrip("/").split("/")[-1] if evidence_path else ""
         
         return {
@@ -172,8 +174,9 @@ class AIValidationService:
                 
                 # Fire-and-forget: schedule the async task
                 asyncio.create_task(self._trigger_ai_validation(validation_payload))
-                print(f"→ AI Validation task queued for: {event_folder}")
+                logger.info(f"AI Validation task queued for: {event_folder}")
 
 
 # Module-level singleton instance for easy import
 ai_validation_service = AIValidationService()
+

@@ -20,6 +20,8 @@ def extract_enriched_data(event: Dict[str, Any]) -> Dict[str, Any]:
     
     # Base enriched data
     enriched = {
+        "company_id": meta.get("company_id", 0),
+        "device_id": meta.get("device_id", 0),
         "cam_id": meta.get("cam_id"),
         "cam_name": meta.get("cam_name"),
         "site_name": meta.get("site_name") or meta.get("site", ""),
@@ -160,6 +162,8 @@ class CameraDataTransformer:
                     "type": event["event_type"],
                     "processed_at": processed_at,
                     "meta": {
+                        "company_id": event.get("company_id", 0),
+                        "device_id": event.get("device_id", 0),
                         "cam_id": cam_id,
                         "cam_name": cam_name,
                         "site_name": event.get("site_name", ""),

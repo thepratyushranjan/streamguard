@@ -5,6 +5,10 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from config import get_settings
 from typing import Optional
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class ClickHouseConnection:
     _instance: Optional[Client] = None
@@ -21,6 +25,7 @@ class ClickHouseConnection:
                 password=settings.clickhouse_password,
                 database=settings.clickhouse_database
             )
+            logger.debug(f"ClickHouse client created for {settings.clickhouse_host}:{settings.clickhouse_port}")
         return cls._instance
     
     @classmethod
@@ -29,6 +34,7 @@ class ClickHouseConnection:
         if cls._instance:
             cls._instance.close()
             cls._instance = None
+            logger.debug("ClickHouse connection closed")
     
     @classmethod
     def test_connection(cls) -> bool:
@@ -37,8 +43,10 @@ class ClickHouseConnection:
             client = cls.get_client()
             result = client.query("SELECT 1")
             return result.first_row[0] == 1
-        except Exception:
+        except Exception as e:
+            logger.error(f"ClickHouse connection test failed: {e}")
             return False
+
 
 def get_clickhouse() -> Client:
     """Dependency for FastAPI"""

@@ -3,13 +3,18 @@ from fastapi import HTTPException
 from clickhouse_connect.driver import Client
 from db.schemas import CameraEventRequest
 from services.constant import CH_COLUMNS
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Store last 50 events for debugging
 _last_events: List[Dict[str, Any]] = []
 
+
 def get_recent_events() -> Dict[str, Any]:
     """Return the last processed events for debugging."""
     return {"count": len(_last_events), "events": _last_events}
+
 
 def process_camera_events(events: List[CameraEventRequest], client: Client) -> Dict[str, Any]:
     """
@@ -44,6 +49,8 @@ def process_camera_events(events: List[CameraEventRequest], client: Client) -> D
 
             # 2. Build Row (ensure no None values)
             row = [
+                meta.company_id or 0,
+                meta.device_id or 0,
                 meta.cam_id or 0,
                 meta.cam_name or "Unknown",
                 meta.site_name or "",
@@ -95,7 +102,7 @@ def process_camera_events(events: List[CameraEventRequest], client: Client) -> D
         new_event_dicts = [e.model_dump() for e in events] 
         _last_events = (new_event_dicts + _last_events)[:50]
 
-        print(f"Successfully inserted {len(rows)} events.")
+        logger.info(f"Successfully inserted {len(rows)} events")
 
         return {
             "success": True, 
@@ -103,5 +110,5 @@ def process_camera_events(events: List[CameraEventRequest], client: Client) -> D
         }
 
     except Exception as e:
-        print(f"Insert Error: {str(e)}")
+        logger.error(f"Insert Error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Database Insert Failed: {str(e)}")

@@ -13,7 +13,9 @@ from config import get_settings
 from db.connection import get_clickhouse, ClickHouseConnection
 from db.schemas import HealthResponse, CameraEventRequest
 from middleware import log_requests_middleware, global_exception_handler
+from utils.logger import get_logger
 
+logger = get_logger(__name__)
 
 app = FastAPI(title="FastAPI + ClickHouse", version="1.0.0")
 settings = get_settings()
@@ -74,13 +76,13 @@ def get_last_events():
 async def startup():
     """Test connection on startup and initialize services"""
     if ClickHouseConnection.test_connection():
-        print(f"✓ Connected to ClickHouse at {settings.clickhouse_host}:{settings.clickhouse_port}")
+        logger.info(f"Connected to ClickHouse at {settings.clickhouse_host}:{settings.clickhouse_port}")
     else:
-        print("✗ Failed to connect to ClickHouse")
+        logger.error("Failed to connect to ClickHouse")
     
     # Initialize validation service HTTP client
     await validation_service.initialize()
-    print("✓ FastAPI started - ready to receive events from Vector")
+    logger.info("FastAPI started - ready to receive events from Vector")
 
 
 @app.on_event("shutdown")
@@ -88,7 +90,7 @@ async def shutdown():
     """Close connections on shutdown"""
     await validation_service.shutdown()
     ClickHouseConnection.close()
-    print("✓ ClickHouse connection closed")
+    logger.info("ClickHouse connection closed")
 
 
 # Vector Trigger
@@ -117,9 +119,9 @@ async def trigger_vector_pipeline(
             }
             for i, event in enumerate(events)
         ]
-        print(f'''payload_input: {results_dict}''')
+        logger.debug(f"payload_input: {results_dict}")
         transformed_data = transformer.transform({"results": results_dict})
-        print(f'''payload_transformed: {transformed_data}''')
+        logger.debug(f"payload_transformed: {transformed_data}")
 
         # Schedule async validation tasks (fire-and-forget, non-blocking)
         # Only validate events with type "event" or "ai-info"

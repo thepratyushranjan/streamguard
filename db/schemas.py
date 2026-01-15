@@ -47,6 +47,8 @@ class EventData(BaseModel):
         return v.lower() if isinstance(v, str) and v else "safe"
 
 class EventMeta(BaseModel):
+    company_id: int  # Mandatory field (UInt32)
+    device_id: int   # Mandatory field (UInt32)
     cam_id: Union[int, str] = 0
     site_name: str = ""
     ts: float = 0.0
