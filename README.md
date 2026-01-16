@@ -9,6 +9,7 @@ StreamGuard is a FastAPI-based service designed to process, enrich, and validate
 - **Validation**:
   - **Standard Validation**: Validates event frames against an external API.
   - **AI Validation**: specific validation for "ai-info" event types.
+- **System Health**: Monitors device performance and camera status.
 - **Storage**: High-performance storage of event data in ClickHouse.
 - **Health Monitoring**: Endpoints for service health and usage metrics.
 
@@ -101,6 +102,7 @@ docker compose exec fastapi python db/manage_tables.py list
 ```bash
 docker compose exec fastapi python db/manage_tables.py create sop_compliance_audits
 docker compose exec fastapi python db/manage_tables.py create video_analytics_logs
+docker compose exec fastapi python db/manage_tables.py create system_health
 ```
 
 ### **Delete a single table:**
@@ -108,6 +110,7 @@ docker compose exec fastapi python db/manage_tables.py create video_analytics_lo
 ```bash
 docker compose exec fastapi python db/manage_tables.py delete sop_compliance_audits
 docker compose exec fastapi python db/manage_tables.py delete video_analytics_logs
+docker compose exec fastapi python db/manage_tables.py delete system_health
 ```
 
 ### **Create all tables:**
@@ -142,6 +145,9 @@ docker compose exec fastapi python db/manage_tables.py delete --all
 - `GET /health`: Health check for API and Database connection.
 - `GET /last-events`: Retrieve recently processed events (debugging).
 
+### System Health
+- `POST /system-health`: Receive and store system health metrics (CPU, RAM, Camera Status).
+
 ## Project Structure
 
 - `main.py`: Application entry point and route definitions.
@@ -151,6 +157,7 @@ docker compose exec fastapi python db/manage_tables.py delete --all
   - `validation_service.py`: External API validation logic.
   - `ai_validation_services.py`: AI-specific validation logic.
   - `vector_services.py`: Data transformation and enrichment.
+  - `system_health_services.py`: System health data processing.
 - `db/`: Database connection and schema definitions.
 - `middleware.py`: Custom middleware (logging, exception handling).
 - `docker-compose.yml`: Container orchestration.

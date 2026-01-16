@@ -12,3 +12,4 @@ venv
 LICENSE
 docker-compose.yml
 vertex-ai-user.json
+awscliv2.zip
