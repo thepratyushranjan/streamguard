@@ -55,7 +55,7 @@ To run the entire system (FastAPI app + ClickHouse) using Docker Compose:
 
 1.  **Clone the repository:**
     ```bash
-    git clone <repository_url>
+    git clone <https://github.com/thepratyushranjan/streamguard.git>
     cd streamguard
     ```
 
