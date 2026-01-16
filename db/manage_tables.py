@@ -18,13 +18,14 @@ sys.path.append(str(Path(__file__).parent.parent))
 from db.connection import ClickHouseConnection
 from db.video_analytics_logs_table import SCHEMAS as VIDEO_ANALYTICS_SCHEMAS
 from db.sop_compliance_audits_table import SCHEMAS as SOP_COMPLIANCE_SCHEMAS
+from db.system_health_table import SCHEMAS as SYSTEM_HEALTH_SCHEMAS
 from config import get_settings
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 # Combine all schemas
-ALL_SCHEMAS = VIDEO_ANALYTICS_SCHEMAS + SOP_COMPLIANCE_SCHEMAS
+ALL_SCHEMAS = VIDEO_ANALYTICS_SCHEMAS + SOP_COMPLIANCE_SCHEMAS + SYSTEM_HEALTH_SCHEMAS
 
 # Build schema registry (table_name -> schema_sql)
 SCHEMA_REGISTRY = {name: schema for name, schema, _ in ALL_SCHEMAS}

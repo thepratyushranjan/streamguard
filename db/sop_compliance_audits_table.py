@@ -1,7 +1,9 @@
 SOP_COMPLIANCE_AUDITS_TABLE = """
 CREATE TABLE IF NOT EXISTS sop_compliance_audits (
     -- 1. Metadata & Identifiers
-    event_id            UUID DEFAULT generateUUIDv4(),
+    row_id              UUID DEFAULT generateUUIDv4(),
+    company_id          String,
+    device_id           String,
     site_id             String,
     site_name           LowCardinality(String),
     cam_id              UInt16,
@@ -15,7 +17,7 @@ CREATE TABLE IF NOT EXISTS sop_compliance_audits (
     state               LowCardinality(String),
     district            LowCardinality(String),
 
-    -- 3. Safety Violation Flags (0 = Safe, 1 = Violation)
+    -- 3. Safety Violation Flags (0 = Safe, 1 = Violation, -1 = Uncertain)
     du_cover_open       UInt8 DEFAULT 0,
     manhole_open        UInt8 DEFAULT 0,
     fuel_plastic_bottle UInt8 DEFAULT 0,
@@ -48,7 +50,9 @@ SCHEMAS = [
 
 # Column metadata for documentation/validation
 COLUMN_METADATA = {
-    "event_id": {"type": "UUID", "description": "Unique event identifier", "pk": True},
+    "row_id": {"type": "UUID", "description": "Unique row identifier", "pk": True},
+    "company_id": {"type": "String", "description": "Company identifier"},
+    "device_id": {"type": "String", "description": "Device identifier"},
     "site_id": {"type": "String", "description": "Unique site ID"},
     "site_name": {"type": "LowCardinality(String)", "description": "Site/location name"},
     "cam_id": {"type": "UInt16", "description": "Camera identifier", "pk": True},
@@ -59,10 +63,10 @@ COLUMN_METADATA = {
     "country": {"type": "LowCardinality(String)", "description": "Country"},
     "state": {"type": "LowCardinality(String)", "description": "State"},
     "district": {"type": "LowCardinality(String)", "description": "District"},
-    "du_cover_open": {"type": "UInt8", "description": "DU cover open violation flag (0 = Safe, 1 = Violation)"},
-    "manhole_open": {"type": "UInt8", "description": "Manhole open violation flag (0 = Safe, 1 = Violation)"},
-    "fuel_plastic_bottle": {"type": "UInt8", "description": "Fuel plastic bottle violation flag (0 = Safe, 1 = Violation)"},
-    "foreign_objects": {"type": "UInt8", "description": "Foreign objects violation flag (0 = Safe, 1 = Violation)"},
+    "du_cover_open": {"type": "UInt8", "description": "DU cover open violation flag (0 = Safe, 1 = Violation, -1 = Uncertain)"},
+    "manhole_open": {"type": "UInt8", "description": "Manhole open violation flag (0 = Safe, 1 = Violation, -1 = Uncertain)"},
+    "fuel_plastic_bottle": {"type": "UInt8", "description": "Fuel plastic bottle violation flag (0 = Safe, 1 = Violation, -1 = Uncertain)"},
+    "foreign_objects": {"type": "UInt8", "description": "Foreign objects violation flag (0 = Safe, 1 = Violation, -1 = Uncertain)"},
     "uniform_score": {"type": "Nullable(Float32)", "description": "Uniform compliance score (0.0 to 1.0)"},
     "hygiene_score": {"type": "Nullable(Float32)", "description": "Hygiene compliance score (0.0 to 1.0)"},
     "cleanliness_score": {"type": "Nullable(Float32)", "description": "Cleanliness compliance score (0.0 to 1.0)"},

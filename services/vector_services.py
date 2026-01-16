@@ -26,6 +26,7 @@ def extract_enriched_data(event: Dict[str, Any]) -> Dict[str, Any]:
         "cam_name": meta.get("cam_name"),
         "site_name": meta.get("site_name") or meta.get("site", ""),
         "site_id": meta.get("site_id", ""),
+        "zone_name": meta.get("zone_name"),  # Required field
         "latitude": meta.get("latitude", 0.0),
         "longitude": meta.get("longitude", 0.0),
         "country": meta.get("country", ""),
@@ -168,6 +169,7 @@ class CameraDataTransformer:
                         "cam_name": cam_name,
                         "site_name": event.get("site_name", ""),
                         "site_id": event.get("site_id", ""),
+                        "zone_name": event.get("zone_name"),  # Required field
                         "latitude": event.get("latitude", 0.0),
                         "longitude": event.get("longitude", 0.0),
                         "country": event.get("country", ""),

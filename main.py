@@ -9,9 +9,10 @@ from services.vector_services import transformer, extract_enriched_data
 from services.events_services import process_camera_events, get_recent_events
 from services.validation_service import validation_service
 from services.ai_validation_services import ai_validation_service
+from services.system_health_services import process_single_system_health
 from config import get_settings
 from db.connection import get_clickhouse, ClickHouseConnection
-from db.schemas import HealthResponse, CameraEventRequest
+from db.schemas import HealthResponse, CameraEventRequest, SystemHealthPayloadRequest
 from middleware import log_requests_middleware, global_exception_handler
 from utils.logger import get_logger
 
@@ -23,7 +24,7 @@ settings = get_settings()
 
 # CORS Middleware
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware, 
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
@@ -147,4 +148,36 @@ async def trigger_vector_pipeline(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to process vector pipeline: {str(e)}"
+        )
+
+
+# System Health Endpoint
+
+@app.post("/system-health")
+async def save_system_health(
+    payload: SystemHealthPayloadRequest,
+    client: Client = Depends(get_clickhouse)
+):
+    """
+    Receives device health metrics including:
+    - Device metadata (company, site, camera info)
+    - System performance (CPU, RAM, network speeds)
+    - Camera statuses (online/offline/error, FPS)
+    """
+    try:
+        result = process_single_system_health(payload, client)
+        
+        return {
+            "success": True,
+            "message": "System health data saved successfully",
+            "inserted": result.get("inserted", 0)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"System health save error: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save system health data: {str(e)}"
         )

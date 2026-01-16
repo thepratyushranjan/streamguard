@@ -49,12 +49,13 @@ def process_camera_events(events: List[CameraEventRequest], client: Client) -> D
 
             # 2. Build Row (ensure no None values)
             row = [
-                meta.company_id or 0,
-                meta.device_id or 0,
+                str(meta.company_id) if meta.company_id else "",
+                str(meta.device_id) if meta.device_id else "",
                 meta.cam_id or 0,
                 meta.cam_name or "Unknown",
                 meta.site_name or "",
                 meta.site_id or "",
+                meta.zone_name,  # Mandatory field
                 meta.latitude or 0.0,
                 meta.longitude or 0.0,
                 meta.country or "",

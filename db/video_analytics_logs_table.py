@@ -1,13 +1,14 @@
 VIDEO_ANALYTICS_LOGS_TABLE = """
 CREATE TABLE IF NOT EXISTS video_analytics_logs (
     -- Primary identifiers
-    event_id UUID DEFAULT generateUUIDv4(),
-    company_id UInt32,
-    device_id UInt32,
+    row_id UUID DEFAULT generateUUIDv4(),
+    company_id String,
+    device_id String,
     cam_id UInt16,
     cam_name LowCardinality(String),
     site_name LowCardinality(String),
     site_id String,
+    zone_name String,
     
     -- Geo-Location
     latitude Float64 DEFAULT 0,
@@ -69,7 +70,7 @@ CREATE TABLE IF NOT EXISTS video_analytics_logs (
     
 ) ENGINE = MergeTree()
 PARTITION BY toYYYYMMDD(toDateTime(event_timestamp))
-ORDER BY (site_name, cam_id, event_timestamp, event_id)
+ORDER BY (site_name, cam_id, event_timestamp, row_id)
 SETTINGS index_granularity = 8192
 """
 
@@ -79,13 +80,14 @@ SCHEMAS = [
 
 # Column metadata for documentation/validation
 COLUMN_METADATA = {
-    "event_id": {"type": "UUID", "description": "Unique event identifier", "pk": True},
-    "company_id": {"type": "UInt32", "description": "Company identifier"},
-    "device_id": {"type": "UInt32", "description": "Device identifier"},
+    "row_id": {"type": "UUID", "description": "Unique row identifier", "pk": True},
+    "company_id": {"type": "String", "description": "Company identifier"},
+    "device_id": {"type": "String", "description": "Device identifier"},
     "cam_id": {"type": "UInt16", "description": "Camera identifier", "pk": True},
     "cam_name": {"type": "LowCardinality(String)", "description": "Camera name"},
     "site_name": {"type": "LowCardinality(String)", "description": "Site/location name", "pk": True},
     "site_id": {"type": "String", "description": "Site ID"},
+    "zone_name": {"type": "String", "description": "Zone name"},
     "latitude": {"type": "Float64", "description": "Latitude"},
     "longitude": {"type": "Float64", "description": "Longitude"},
     "country": {"type": "String", "description": "Country"},
