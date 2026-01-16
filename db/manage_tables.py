@@ -15,11 +15,11 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-from db.connection import ClickHouseConnection
+from core.connection import ClickHouseConnection
 from db.video_analytics_logs_table import SCHEMAS as VIDEO_ANALYTICS_SCHEMAS
 from db.sop_compliance_audits_table import SCHEMAS as SOP_COMPLIANCE_SCHEMAS
 from db.system_health_table import SCHEMAS as SYSTEM_HEALTH_SCHEMAS
-from config import get_settings
+from core.config import get_settings
 from utils.logger import get_logger
 
 logger = get_logger(__name__)

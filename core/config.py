@@ -3,7 +3,9 @@ from functools import lru_cache
 from typing import Optional
 import os
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# BASE_DIR is the root of the project.
+# config.py is in core/, so we need to go up one level.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class Settings(BaseSettings):
     clickhouse_host: str

@@ -1,19 +1,18 @@
-from fastapi import FastAPI, HTTPException, Request, Depends, BackgroundTasks
-import os
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from clickhouse_connect.driver import Client
-from datetime import datetime
-from typing import Dict, Any, List, Union
-from services.vector_services import transformer, extract_enriched_data
-from services.events_services import process_camera_events, get_recent_events
+
+from api.routes import (
+    root_router,
+    health_router, 
+    events_router,
+    vector_router,
+    system_health_router,
+)
+from core.config import get_settings
+from core.connection import ClickHouseConnection
 from services.validation_service import validation_service
-from services.ai_validation_services import ai_validation_service
-from services.system_health_services import process_single_system_health
-from config import get_settings
-from db.connection import get_clickhouse, ClickHouseConnection
-from db.schemas import HealthResponse, CameraEventRequest, SystemHealthPayloadRequest
-from middleware import log_requests_middleware, global_exception_handler
+from core.middleware import log_requests_middleware, global_exception_handler
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -42,35 +41,12 @@ app.middleware("http")(log_requests_middleware)
 app.exception_handler(Exception)(global_exception_handler)
 
 
-
-@app.get("/")
-def root():
-    return {
-        "status": "running", 
-        "service": "camera-event-processor",
-        "database": settings.clickhouse_database
-    }
-
-
-@app.get("/health", response_model=HealthResponse)
-def health_check(client: Client = Depends(get_clickhouse)):
-    """Health check endpoint"""
-    try:
-        client.query("SELECT 1")
-        return HealthResponse(
-            status="healthy",
-            clickhouse="connected",
-            timestamp=datetime.now()
-        )
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"ClickHouse unavailable: {str(e)}")
-
-
-
-@app.get("/last-events")
-def get_last_events():
-    """Get last processed events for debugging"""
-    return get_recent_events()
+# Include Routers
+app.include_router(root_router)
+app.include_router(health_router)
+app.include_router(events_router)
+app.include_router(vector_router)
+app.include_router(system_health_router)
 
 
 @app.on_event("startup")
@@ -92,92 +68,3 @@ async def shutdown():
     await validation_service.shutdown()
     ClickHouseConnection.close()
     logger.info("ClickHouse connection closed")
-
-
-# Vector Trigger
-
-@app.post("/vector")
-async def trigger_vector_pipeline(
-    events: Union[List[Dict[str, Any]], Dict[str, Any]], 
-    client: Client = Depends(get_clickhouse)
-):
-    """
-    Trigger Vector pipeline by receiving events directly in body.
-    """
-    try:
-        # Normalize single event to list
-        if isinstance(events, dict):
-            events = [events]
-            
-        if not events:
-            return {"success": True, "message": "No events to process", "results": []}
-        
-        # Process all events
-        results_dict = [
-            {
-                "event_index": i + 1,
-                **extract_enriched_data(event)
-            }
-            for i, event in enumerate(events)
-        ]
-        logger.debug(f"payload_input: {results_dict}")
-        transformed_data = transformer.transform({"results": results_dict})
-        logger.debug(f"payload_transformed: {transformed_data}")
-
-        # Schedule async validation tasks (fire-and-forget, non-blocking)
-        # Only validate events with type "event" or "ai-info"
-        if transformed_data and transformed_data[0].get("type", "").lower() in ("event"):
-            validation_service.schedule_validation_tasks(transformed_data)
-
-        if transformed_data and transformed_data[0].get("type", "").lower() in ("ai-info"):
-            ai_validation_service.schedule_ai_validation_tasks(transformed_data)
-            
-        # Convert to Pydantic models and insert into ClickHouse
-        camera_events = [CameraEventRequest(**item) for item in transformed_data]
-        db_response = process_camera_events(camera_events, client)
-        
-        return {
-            "success": True,
-            "total_events": len(events),
-            "db_response": db_response
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process vector pipeline: {str(e)}"
-        )
-
-
-# System Health Endpoint
-
-@app.post("/system-health")
-async def save_system_health(
-    payload: SystemHealthPayloadRequest,
-    client: Client = Depends(get_clickhouse)
-):
-    """
-    Receives device health metrics including:
-    - Device metadata (company, site, camera info)
-    - System performance (CPU, RAM, network speeds)
-    - Camera statuses (online/offline/error, FPS)
-    """
-    try:
-        result = process_single_system_health(payload, client)
-        
-        return {
-            "success": True,
-            "message": "System health data saved successfully",
-            "inserted": result.get("inserted", 0)
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"System health save error: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to save system health data: {str(e)}"
-        )

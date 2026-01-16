@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 from fastapi import HTTPException
 from clickhouse_connect.driver import Client
 from db.schemas import CameraEventRequest
-from services.constant import CH_COLUMNS
+from utils.constant import CH_COLUMNS
 from utils.logger import get_logger
 
 logger = get_logger(__name__)

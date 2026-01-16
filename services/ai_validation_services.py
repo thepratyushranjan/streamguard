@@ -5,7 +5,7 @@ import asyncio
 from typing import Dict, Any, List, Optional
 import httpx
 
-from config import get_settings
+from core.config import get_settings
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
