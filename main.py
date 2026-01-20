@@ -13,6 +13,7 @@ from api.routes import (
 from core.config import get_settings
 from core.connection import ClickHouseConnection
 from services.validation_service import validation_service
+from services.trigger_merge_service import trigger_merge_service
 from core.middleware import log_requests_middleware, global_exception_handler
 from utils.logger import get_logger
 
@@ -61,6 +62,10 @@ async def startup():
     
     # Initialize validation service HTTP client
     await validation_service.initialize()
+    
+    # Start trigger merge retry worker
+    await trigger_merge_service.start_worker()
+    
     logger.info("FastAPI started - ready to receive events from Vector")
 
 
@@ -68,5 +73,6 @@ async def startup():
 async def shutdown():
     """Close connections on shutdown"""
     await validation_service.shutdown()
+    await trigger_merge_service.stop_worker()
     ClickHouseConnection.close()
     logger.info("ClickHouse connection closed")

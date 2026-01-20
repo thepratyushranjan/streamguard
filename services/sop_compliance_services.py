@@ -78,6 +78,7 @@ def _build_audit_row(audit: SOPComplianceAudit) -> List[Any]:
 def save_ai_response_to_audit(ai_response: Dict[str, Any], client: Optional[Client] = None) -> Dict[str, Any]:
     """
     Parse AI response and save to sop_compliance_audits table.
+    Also merges AI-info triggers into matching video_analytics_logs record.
     
     Args:
         ai_response: The AI response dictionary
@@ -90,7 +91,21 @@ def save_ai_response_to_audit(ai_response: Dict[str, Any], client: Optional[Clie
         parsed = AIResponse.model_validate(ai_response)
         audit = parsed.to_audit()
         db_client = client or get_clickhouse()
-        return process_sop_audit(audit, db_client)
+        result = process_sop_audit(audit, db_client)
+        
+        # Merge triggers to video_analytics_logs if save was successful
+        if result.get("success") and audit.event_triggers:
+            from services.trigger_merge_service import trigger_merge_service
+            merge_result = trigger_merge_service.merge_triggers(
+                event_timestamp=audit.event_timestamp,
+                device_id=audit.device_id,
+                company_id=audit.company_id,
+                triggers=audit.event_triggers
+            )
+            result["trigger_merge"] = merge_result
+            logger.info(f"Trigger merge result: {merge_result}")
+        
+        return result
     except Exception as e:
         logger.error(f"Failed to save AI response to audit: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
