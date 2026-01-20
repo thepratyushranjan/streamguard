@@ -98,16 +98,205 @@ class CameraEventRequest(BaseModel):
 
 # --- SOP Compliance Audit Schemas ---
 
+# Utility function for score conversion (DRY: reusable across schemas)
+def score_to_uint8(value: Optional[float]) -> int:
+    """Convert 0-1 float score to 0-10 integer scale."""
+    return min(max(int((value or 0) * 10), 0), 10)
+
+
+# Field name constants for mapping (DRY: avoids repetition in to_audit and services)
+METADATA_FIELDS = ['company_id', 'device_id', 'cam_id', 'cam_name', 'site_name', 
+                   'site_id', 'event_timestamp', 'latitude', 'longitude', 
+                   'country', 'state', 'district']
+SOP_FIELDS = ['sop_manned_air', 'sop_greeting', 'sop_uniform', 'sop_unauthorized', 'sop_cleanliness']
+SAFETY_FIELDS = ['du_cover_open', 'manhole_open', 'fuel_plastic_bottle', 'foreign_objects',
+                 'smoking_detected', 'fire_detected', 'fight_detected', 'mob_gathering', 'unauthorized_area']
+OPERATIONS_FIELDS = ['fsm_present', 'manned_air_filling', 'five_liter_testing', 'five_liter_returned']
+SCORE_FIELDS = ['uniform_score', 'cleanliness_score', 'safety_score', 'hygiene_score']
+BEHAVIORAL_INT_FIELDS = ['greeting_detected', 'show_zero_detected', 'customer_left_unfueled', 'mobile_phone_use']
+COUNT_FIELDS = ['people_count', 'staff_count', 'customer_count', 'vehicle_count', 'active_pumps']
+AGGREGATE_FIELDS = ['items_needing_attention', 'safety_issues_count', 'compliance_issues_count']
+
+
+class AIResponseMetadata(BaseModel):
+    """AI Response metadata section."""
+    company_id: str = ""
+    device_id: str = ""
+    cam_id: int = 0
+    cam_name: str = ""
+    site_name: str = ""
+    site_id: str = ""
+    event_timestamp: int = 0
+    latitude: float = 0.0
+    longitude: float = 0.0
+    country: str = ""
+    state: str = ""
+    district: str = ""
+    clip_duration_seconds: int = 0
+    media_analyzed: int = 0
+
+
+class AIResponseSafety(BaseModel):
+    """AI Response safety KPIs."""
+    du_cover_open: int = -1
+    manhole_open: int = -1
+    fuel_plastic_bottle: int = -1
+    foreign_objects: int = -1
+    smoking_detected: int = -1
+    fire_detected: int = -1
+    fight_detected: int = -1
+    mob_gathering: int = -1
+    unauthorized_area: int = -1
+
+
+class AIResponseOperations(BaseModel):
+    """AI Response operations KPIs."""
+    fsm_present: int = -1
+    manned_air_filling: int = -1
+    five_liter_testing: int = -1
+    five_liter_returned: int = -1
+
+
+class AIResponseScores(BaseModel):
+    """AI Response scores (0-1 float scale)."""
+    uniform_score: Optional[float] = None
+    cleanliness_score: Optional[float] = None
+    safety_score: Optional[float] = None
+    hygiene_score: Optional[float] = None
+
+    def to_uint8(self, value: Optional[float]) -> int:
+        """Convert 0-1 score to 0-10 scale."""
+        return score_to_uint8(value)
+
+    def to_uint8_dict(self) -> dict:
+        """Convert all scores to uint8 dict for bulk assignment."""
+        return {field: score_to_uint8(getattr(self, field)) for field in SCORE_FIELDS}
+
+
+class AIResponseBehavioral(BaseModel):
+    """AI Response behavioral KPIs."""
+    customer_present: bool = False
+    greeting_detected: int = -1
+    show_zero_detected: int = -1
+    customer_left_unfueled: int = -1
+    mobile_phone_use: int = -1
+
+
+class AIResponseCounts(BaseModel):
+    """AI Response counts."""
+    people_count: int = 0
+    staff_count: int = 0
+    customer_count: int = 0
+    vehicle_count: int = 0
+    active_pumps: int = 0
+
+
+class AIResponseVehicle(BaseModel):
+    """AI Response vehicle entry."""
+    type: Optional[str] = None
+    plate: Optional[str] = None
+    plate_confidence: Optional[float] = None
+
+
+class AIResponseClassification(BaseModel):
+    """AI Response classification."""
+    status: str = ""
+    utilization: str = ""
+
+
+class AIResponseAggregates(BaseModel):
+    """AI Response aggregates."""
+    items_needing_attention: int = 0
+    overall_compliance_pct: int = 0
+    safety_issues_count: int = 0
+    compliance_issues_count: int = 0
+
+
+class AIResponseSOP(BaseModel):
+    """AI Response SOP core triggers."""
+    sop_manned_air: int = -1
+    sop_greeting: int = -1
+    sop_uniform: int = -1
+    sop_unauthorized: int = 0
+    sop_cleanliness: int = -1
+
+
+class AIResponse(BaseModel):
+    """Complete AI validation response schema."""
+    metadata: AIResponseMetadata = Field(default_factory=AIResponseMetadata)
+    safety: AIResponseSafety = Field(default_factory=AIResponseSafety)
+    operations: AIResponseOperations = Field(default_factory=AIResponseOperations)
+    scores: AIResponseScores = Field(default_factory=AIResponseScores)
+    behavioral: AIResponseBehavioral = Field(default_factory=AIResponseBehavioral)
+    counts: AIResponseCounts = Field(default_factory=AIResponseCounts)
+    vehicles: List[AIResponseVehicle] = Field(default_factory=list)
+    classification: AIResponseClassification = Field(default_factory=AIResponseClassification)
+    triggers: List[str] = Field(default_factory=list)
+    ai_summary: str = ""
+    aggregates: AIResponseAggregates = Field(default_factory=AIResponseAggregates)
+    sop: AIResponseSOP = Field(default_factory=AIResponseSOP)
+
+    def _copy_fields(self, source: BaseModel, fields: List[str]) -> dict:
+        """Copy specified fields from source model to dict."""
+        return {field: getattr(source, field) for field in fields}
+
+    def _extract_vehicles(self) -> dict:
+        """Extract vehicle data into separate arrays."""
+        return {
+            'vehicles_type': [v.type or "" for v in self.vehicles],
+            'vehicles_plate': [v.plate or "" for v in self.vehicles],
+            'vehicles_confidence': [v.plate_confidence or 0.0 for v in self.vehicles],
+        }
+
+    def to_audit(self) -> "SOPComplianceAudit":
+        """Convert AI response to SOPComplianceAudit model."""
+        # Build audit data using helper methods (DRY approach)
+        audit_data = {}
+
+        # Copy fields from nested models
+        audit_data.update(self._copy_fields(self.metadata, METADATA_FIELDS))
+        audit_data.update(self._copy_fields(self.sop, SOP_FIELDS))
+        audit_data.update(self._copy_fields(self.safety, SAFETY_FIELDS))
+        audit_data.update(self._copy_fields(self.operations, OPERATIONS_FIELDS))
+        audit_data.update(self._copy_fields(self.counts, COUNT_FIELDS))
+        audit_data.update(self._copy_fields(self.aggregates, AGGREGATE_FIELDS))
+
+        # Convert scores from 0-1 to 0-10 scale
+        audit_data.update(self.scores.to_uint8_dict())
+
+        # Behavioral fields (special handling for customer_present)
+        audit_data['customer_present'] = 1 if self.behavioral.customer_present else 0
+        audit_data.update(self._copy_fields(self.behavioral, BEHAVIORAL_INT_FIELDS))
+
+        # Additional mappings
+        audit_data['media_analyzed'] = self.metadata.media_analyzed
+        audit_data.update(self._extract_vehicles())
+        audit_data['status'] = self.classification.status
+        audit_data['utilization'] = self.classification.utilization
+        audit_data['event_triggers'] = self.triggers
+        audit_data['ai_summary'] = self.ai_summary
+
+        return SOPComplianceAudit(**audit_data)
+
+
+class VehicleData(BaseModel):
+    """Vehicle detection data."""
+    type: str = ""
+    plate: str = ""
+    confidence: float = 0.0
+
+
 class SOPComplianceAudit(BaseModel):
-    # Metadata & Identifiers
-    row_id: Optional[str] = None  # UUID as string
-    company_id: str
-    device_id: str
-    site_id: str
-    site_name: str
-    cam_id: int
-    cam_name: str
-    event_timestamp: datetime
+    """SOP Compliance Audit model for database storage."""
+    # METADATA
+    row_id: Optional[str] = None
+    company_id: str = ""
+    device_id: str = ""
+    cam_id: int = 0
+    cam_name: str = ""
+    site_name: str = ""
+    site_id: str = ""
+    event_timestamp: int = 0
 
     # Geo-Location
     latitude: float = 0.0
@@ -116,27 +305,69 @@ class SOPComplianceAudit(BaseModel):
     state: str = ""
     district: str = ""
 
-    # Safety Violation Flags (0 = Safe, 1 = Violation, -1 = Uncertain)
-    du_cover_open: int = 0
-    manhole_open: int = 0
-    fuel_plastic_bottle: int = 0
-    foreign_objects: int = 0
+    # 5 CORE SOP TRIGGERS (1=Pass, 0=Fail, -1=N/A)
+    sop_manned_air: int = -1
+    sop_greeting: int = -1
+    sop_uniform: int = -1
+    sop_unauthorized: int = 0
+    sop_cleanliness: int = -1
 
-    # Quality & Behavioral KPIs
-    uniform_score: Optional[float] = None
-    hygiene_score: Optional[float] = None
-    cleanliness_score: Optional[float] = None
+    # SAFETY KPIs (1=Issue, 0=Clear, -1=Not Assessed)
+    du_cover_open: int = -1
+    manhole_open: int = -1
+    fuel_plastic_bottle: int = -1
+    foreign_objects: int = -1
+    smoking_detected: int = -1
+    fire_detected: int = -1
+    fight_detected: int = -1
+    mob_gathering: int = -1
+    unauthorized_area: int = -1
 
-    # Behavioral (1 = Success, 0 = Fail, NULL/None = No Opportunity)
-    greeting_detected: Optional[int] = None
-    show_zero_detected: Optional[int] = None
+    # OPERATIONS KPIs (1=Present, 0=Absent, -1=N/A)
+    fsm_present: int = -1
+    manned_air_filling: int = -1
+    five_liter_testing: int = -1
+    five_liter_returned: int = -1
 
-    # Contextual Data
+    # SCORE-BASED KPIs (0-10 scale)
+    uniform_score: int = 0
+    cleanliness_score: int = 0
+    safety_score: int = 0
+    hygiene_score: int = 0
+    overall_score: int = 0
+
+    # BEHAVIORAL KPIs (1=Yes, 0=No, -1=N/A)
+    customer_present: int = 0
+    greeting_detected: int = -1
+    show_zero_detected: int = -1
+    customer_left_unfueled: int = -1
+    mobile_phone_use: int = -1
+
+    # COUNTS
+    people_count: int = 0
+    staff_count: int = 0
+    customer_count: int = 0
+    vehicle_count: int = 0
+    active_pumps: int = 0
+    media_analyzed: int = 0
+
+    # VEHICLE DATA (Arrays)
+    vehicles_type: List[str] = Field(default_factory=list)
+    vehicles_plate: List[str] = Field(default_factory=list)
+    vehicles_confidence: List[float] = Field(default_factory=list)
+
+    # STATUS & CLASSIFICATION
+    status: str = ""
+    utilization: str = ""
+    event_triggers: List[str] = Field(default_factory=list)
+
+    # AI OUTPUTS
     ai_summary: str = ""
-    evidence_path: str = ""
 
-    # Dashboard Aggregates
+    # AGGREGATES
     items_needing_attention: int = 0
+    safety_issues_count: int = 0
+    compliance_issues_count: int = 0
 
 class SOPComplianceAuditResponse(SOPComplianceAudit):
     row_id: str  # Mandatory in response

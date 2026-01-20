@@ -45,7 +45,12 @@ async def trigger_vector_pipeline(
     if event_type == "event":
         validation_service.schedule_validation_tasks(transformed_data)
     elif event_type == "ai-info":
+        # Only schedule AI validation tasks, skip database save
         ai_validation_service.schedule_ai_validation_tasks(transformed_data)
+        return success_response(
+            message="AI info validation scheduled",
+            total_events=len(events)
+        )
         
     # Convert to Pydantic models and insert into ClickHouse
     camera_events = [CameraEventRequest(**item) for item in transformed_data]

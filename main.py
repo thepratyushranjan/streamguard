@@ -8,6 +8,7 @@ from api.routes import (
     events_router,
     vector_router,
     system_health_router,
+    sop_compliance_router,
 )
 from core.config import get_settings
 from core.connection import ClickHouseConnection
@@ -47,6 +48,7 @@ app.include_router(health_router)
 app.include_router(events_router)
 app.include_router(vector_router)
 app.include_router(system_health_router)
+app.include_router(sop_compliance_router)
 
 
 @app.on_event("startup")
