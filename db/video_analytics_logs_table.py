@@ -101,7 +101,7 @@ COLUMN_METADATA = {
     "event_status": {"type": "Enum8", "description": "Event status (safe=1, warning=2, critical=3, emergency=4, triaged=5)"},
     "capture_triggered": {"type": "Bool", "description": "Whether capture was triggered"},
     "processed_at": {"type": "UInt16", "description": "Timestamp of processing"},
-    "event_timestamp": {"type": "UInt16", "description": "Timestamp of event", "partition": True},
+    "event_timestamp": {"type": "UInt32", "description": "Timestamp of event", "partition": True},
     "detections.*": {"type": "Array", "description": "Nested detection arrays"},
     "detections.object_id": {"type": "Array(String)", "description": "Object IDs for detections"},
     "triaged_by": {"type": "String", "description": "User who triaged the event"},
