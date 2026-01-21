@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS video_analytics_logs (
     -- Triage and AI
     triaged_by LowCardinality(String),
     triage_notes String,
-    triage_timestamp UInt16,
+    triage_timestamp UInt32,
     ai_insights String,
     evidence_path String,
 
