@@ -13,7 +13,6 @@ router = APIRouter(tags=["System Health"])
 @handle_route_exceptions("Failed to save system health data")
 async def save_system_health(
     payload: SystemHealthPayloadRequest,
-    client: Client = Depends(get_clickhouse)
 ):
     """
     Receives device health metrics including:
@@ -21,6 +20,8 @@ async def save_system_health(
     - System performance (CPU, RAM, network speeds)
     - Camera statuses (online/offline/error, FPS)
     """
+
+    client: Client = get_clickhouse(payload.meta.company_id)
     result = process_single_system_health(payload, client)
     
     return success_response(

@@ -1,4 +1,5 @@
 from typing import List, Dict, Any
+from core.connection import get_clickhouse
 from fastapi import HTTPException
 from clickhouse_connect.driver import Client
 from db.schemas import CameraEventRequest
@@ -16,7 +17,7 @@ def get_recent_events() -> Dict[str, Any]:
     return {"count": len(_last_events), "events": _last_events}
 
 
-def process_camera_events(events: List[CameraEventRequest], client: Client) -> Dict[str, Any]:
+def process_camera_events(events: List[CameraEventRequest]) -> Dict[str, Any]:
     """
     Process camera events and insert them into ClickHouse.
     """
@@ -26,6 +27,7 @@ def process_camera_events(events: List[CameraEventRequest], client: Client) -> D
     rows = []
     
     try:
+        company_id = None
         for evt in events:
             meta = evt.meta
             payload = evt.payload
@@ -46,6 +48,8 @@ def process_camera_events(events: List[CameraEventRequest], client: Client) -> D
             rec_identities = [d.recognition.get("identity", "") if d.recognition else "" for d in detections]
             rec_confidences = [d.recognition.get("confidence", 0.0) if d.recognition else 0.0 for d in detections]
             rec_identity_ids = [d.recognition.get("identity_id", 0) if d.recognition else 0 for d in detections]
+
+            company_id = str(meta.company_id) if meta.company_id else None
 
             # 2. Build Row (ensure no None values)
             row = [
@@ -92,6 +96,7 @@ def process_camera_events(events: List[CameraEventRequest], client: Client) -> D
             rows.append(row)
 
         # 3. Batch Insert
+        client = get_clickhouse(company_id)
         client.insert(
             'video_analytics_logs',
             rows,
