@@ -42,6 +42,14 @@ def process_camera_events(events: List[CameraEventRequest]) -> Dict[str, Any]:
             d_width = [d.bbox[2] if d.bbox and len(d.bbox) > 2 else 0 for d in detections]
             d_height = [d.bbox[3] if d.bbox and len(d.bbox) > 3 else 0 for d in detections]
             d_object_ids = [d.object_id or 0 for d in detections]
+            d_model_ids = [d.model_id or 0 for d in detections]
+            d_track_ids = [d.track_id or 0 for d in detections]
+            
+            # Extract LPR (License Plate Recognition) data from detections
+            lpr_rc_nos = [d.lpr.get("rc_no", "") if d.lpr else "" for d in detections]
+            lpr_track_ids = [d.lpr.get("track_id", 0) if d.lpr else 0 for d in detections]
+            lpr_confidences = [d.lpr.get("confidence", 0.0) if d.lpr else 0.0 for d in detections]
+            lpr_identity_ids = [d.lpr.get("identity_id", 0) if d.lpr else 0 for d in detections]
             
             # Extract recognition data from detections
             display_labels = [d.display_label or "" for d in detections]
@@ -65,8 +73,6 @@ def process_camera_events(events: List[CameraEventRequest]) -> Dict[str, Any]:
                 meta.country or "",
                 meta.state or "",
                 meta.district or "",
-                len(detections),          
-                payload.people_count or 0,
                 payload.video_count or 0,
                 payload.image_count or 0,
                 evt.type or "metric",                 
@@ -82,6 +88,12 @@ def process_camera_events(events: List[CameraEventRequest]) -> Dict[str, Any]:
                 d_width,
                 d_height,
                 d_object_ids,
+                d_model_ids,
+                d_track_ids,
+                lpr_rc_nos,
+                lpr_track_ids,
+                lpr_confidences,
+                lpr_identity_ids,
                 payload.triggers or [],
                 payload.triaged_by or "",
                 payload.triage_notes or "",

@@ -58,7 +58,6 @@ def extract_enriched_data(event: Dict[str, Any]) -> Dict[str, Any]:
     
     # Add common fields
     enriched.update({
-        "people_count": source.get("people_count"),
         "video_count": source.get("video_count", 0),
         "image_count": source.get("image_count", 0),
         **_extract_detection_data(detections),
@@ -136,6 +135,12 @@ class CameraDataTransformer:
             "object_id": det.get("object_id", ""),
             "display_label": det.get("display_label", ""),
             "recognition": recognition,
+            # Optional detection metadata
+            "model_id": det.get("model_id", 0),
+            "track_id": det.get("track_id", 0),
+            "parent_track_id": det.get("parent_track_id", 0),
+            # Optional LPR data
+            "lpr": det.get("lpr", {}),
         }
 
     # ---------- Public API ----------
@@ -179,7 +184,6 @@ class CameraDataTransformer:
                         "ts": processed_at,
                     },
                     "data": {
-                        "people_count": event["people_count"],
                         "video_count": event.get("video_count", 0),
                         "image_count": event.get("image_count", 0),
                         "triggers": event.get("triggers", []),
