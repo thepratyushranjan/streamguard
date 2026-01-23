@@ -17,6 +17,12 @@ class Detection(BaseModel):
     object_id: Optional[Union[int, str]] = 0
     recognition: Optional[dict] = Field(default_factory=dict)
     display_label: Optional[str] = ""
+    # Optional detection metadata
+    model_id: int = 0
+    track_id: int = 0
+    parent_track_id: int = 0
+    # Optional LPR (License Plate Recognition) data
+    lpr: Optional[dict] = Field(default_factory=dict)
 
     @field_validator('object_id', mode='before')
     def parse_object_id(cls, v):
@@ -28,7 +34,6 @@ class Detection(BaseModel):
             return 0
 
 class EventData(BaseModel):
-    people_count: int = 0
     video_count: int = 0
     image_count: int = 0
     detections: List[Detection] = Field(default_factory=list)

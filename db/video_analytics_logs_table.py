@@ -18,8 +18,6 @@ CREATE TABLE IF NOT EXISTS video_analytics_logs (
     district LowCardinality(String),
     
     -- Event metrics
-    detection_count UInt16 DEFAULT 0,
-    people_count UInt16 DEFAULT 0,
     video_count UInt16 DEFAULT 0,
     image_count UInt16 DEFAULT 0,
     
@@ -41,6 +39,14 @@ CREATE TABLE IF NOT EXISTS video_analytics_logs (
     `detections.bbox_width` Array(UInt16) DEFAULT [],
     `detections.bbox_height` Array(UInt16) DEFAULT [],
     `detections.object_id` Array(UInt16) DEFAULT [],
+    `detections.model_id` Array(UInt8) DEFAULT [],
+    `detections.track_id` Array(UInt32) DEFAULT [],
+    
+    -- LPR (License Plate Recognition) Data
+    `lpr.rc_no` Array(String) DEFAULT [],
+    `lpr.track_id` Array(UInt32) DEFAULT [],
+    `lpr.confidence` Array(Float32) DEFAULT [],
+    `lpr.identity_id` Array(UInt32) DEFAULT [],
     
     -- Event triggers
     event_triggers Array(LowCardinality(String)) DEFAULT [],
@@ -93,8 +99,6 @@ COLUMN_METADATA = {
     "country": {"type": "String", "description": "Country"},
     "state": {"type": "String", "description": "State"},
     "district": {"type": "String", "description": "District"},
-    "detection_count": {"type": "UInt16", "description": "Total detections in frame"},
-    "people_count": {"type": "UInt16", "description": "Number of people detected"},
     "video_count": {"type": "UInt16", "description": "Number of videos captured"},
     "image_count": {"type": "UInt16", "description": "Number of images captured"},
     "event_type": {"type": "Enum8", "description": "Event type (metric=1, event=2, ai-info=3)"},

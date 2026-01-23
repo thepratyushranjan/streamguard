@@ -14,14 +14,6 @@ services:
     tty: true
     stdin_open: true
 
-    # vector:
-    #   image: timberio/vector:0.34.0-alpine
-    #   command: ["--config", "/etc/vector/vector.toml"]
-    #   ports:
-    #     - "8080:8080"
-    #     - "8686:8686"
-    #   volumes:
-    #     - ./vector/vector.toml:/etc/vector/vector.toml:ro
     environment:
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: 8123
@@ -46,5 +38,5 @@ services:
 
 volumes:
   clickhouse_data:
-###
+##
 
