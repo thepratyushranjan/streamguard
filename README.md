@@ -82,6 +82,7 @@ To run the FastAPI service locally without Docker (requires a running ClickHouse
 2.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
+    sudo apt install ffmpeg
     ```
 
 3.  **Run the application:**
@@ -161,3 +162,5 @@ docker compose exec fastapi python db/manage_tables.py delete --all
 - `db/`: Database connection and schema definitions.
 - `middleware.py`: Custom middleware (logging, exception handling).
 - `docker-compose.yml`: Container orchestration.
+
+
