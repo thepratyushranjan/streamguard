@@ -133,7 +133,7 @@ def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str)
     logger.info(f"Starting processing for folder: {TEMP_DIR}")
     
     extract_path = TEMP_DIR
-    os.makedirs(extract_path, exist_ok=True)
+    # os.makedirs(extract_path, exist_ok=True)
 
     client = get_storage_client() 
 

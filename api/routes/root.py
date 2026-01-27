@@ -14,13 +14,6 @@ router = APIRouter(tags=["Root"])
 settings = get_settings()
 
 
-# --- CONFIGURATION ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMP_DIR = os.path.join(BASE_DIR, "temp_uploads")
-CONFIG_PATH = os.path.join(BASE_DIR, "configs", "app_config.yaml")
-
-os.makedirs(TEMP_DIR, exist_ok=True)
-
 @router.get("/")
 def root():
     return {
@@ -38,13 +31,20 @@ async def upload_folder(
     if not file.filename.endswith(".zip"):
         raise HTTPException(status_code=400, detail="File must be a .zip")
 
-    temp_zip_path = os.path.join(TEMP_DIR, f"{file.filename}")
-    
-    with open(temp_zip_path, "wb") as buffer:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+    zip_base_name = os.path.splitext(file.filename)[0]  
+    extract_dir = os.path.join(BASE_DIR, zip_base_name)
+
+    os.makedirs(extract_dir, exist_ok=True)
+
+    zip_path = os.path.join(extract_dir, file.filename)
+
+    with open(zip_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    background_tasks.add_task(process_and_upload_workflow, temp_zip_path,TEMP_DIR,file_name)
-    # process_and_upload_workflow(temp_zip_path,TEMP_DIR,file_name)
+    background_tasks.add_task(process_and_upload_workflow, zip_path,extract_dir,file_name)
+    # process_and_upload_workflow(zip_path,extract_dir,file_name)
 
     return {
         "status": "success",
