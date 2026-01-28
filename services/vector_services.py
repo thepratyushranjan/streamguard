@@ -22,16 +22,17 @@ def extract_enriched_data(event: Dict[str, Any]) -> Dict[str, Any]:
     enriched = {
         "company_id": meta.get("company_id", 0),
         "device_id": meta.get("device_id", 0),
-        "cam_id": meta.get("cam_id"),
+        "cam_id": meta.get("cam_id", ""),
         "cam_name": meta.get("cam_name"),
         "site_name": meta.get("site_name") or meta.get("site", ""),
         "site_id": meta.get("site_id", ""),
-        "zone_name": meta.get("zone_name"),  # Required field
+        "zone_names": meta.get("zone_names", []),  # Required field (Array)
         "latitude": meta.get("latitude", 0.0),
         "longitude": meta.get("longitude", 0.0),
         "country": meta.get("country", ""),
         "state": meta.get("state", ""),
         "district": meta.get("district", ""),
+        "city": meta.get("city", ""),
         "status": data.get("status") or meta.get("status", "safe"),
         "event_type": event_type,
         "timestamp": meta.get("ts"),
@@ -95,14 +96,14 @@ class CameraDataTransformer:
 
     # ---------- Internal Helpers ----------
 
-    def _get_or_create_cam_id(self, cam_name: str) -> int:
-        """Return integer cam_id, create if not exists."""
-        cam_id = self.cam_id_mapping.get(cam_name)
-        if cam_id is None:
-            cam_id = self._next_id
-            self.cam_id_mapping[cam_name] = cam_id
-            self._next_id += 1
-        return cam_id
+    # def _get_or_create_cam_id(self, cam_name: str) -> int:
+    #     """Return integer cam_id, create if not exists."""
+    #     cam_id = self.cam_id_mapping.get(cam_name)
+    #     if cam_id is None:
+    #         cam_id = self._next_id
+    #         self.cam_id_mapping[cam_name] = cam_id
+    #         self._next_id += 1
+    #     return cam_id
 
     @staticmethod
     def _to_unix_timestamp(value: Union[str, int, float]) -> int:
@@ -159,8 +160,8 @@ class CameraDataTransformer:
 
         for event in input_data.get("results", []):
             # Prefer explicit cam_name, fallback to stringified cam_id
-            cam_name = event.get("cam_name") or str(event["cam_id"])
-            cam_id = self._get_or_create_cam_id(cam_name)
+            cam_name = event.get("cam_name")
+            cam_id = event.get("cam_id")
             processed_at = self._to_unix_timestamp(event["timestamp"])
 
             transformed_events.append(
@@ -174,12 +175,13 @@ class CameraDataTransformer:
                         "cam_name": cam_name,
                         "site_name": event.get("site_name", ""),
                         "site_id": event.get("site_id", ""),
-                        "zone_name": event.get("zone_name"),  # Required field
+                        "zone_names": event.get("zone_names", []),  # Required field (Array)
                         "latitude": event.get("latitude", 0.0),
                         "longitude": event.get("longitude", 0.0),
                         "country": event.get("country", ""),
                         "state": event.get("state", ""),
                         "district": event.get("district", ""),
+                        "city": event.get("city", ""),
                         "status": event.get("status", "safe"),
                         "ts": processed_at,
                     },

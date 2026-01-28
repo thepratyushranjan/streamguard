@@ -160,21 +160,19 @@ class ValidationService:
     
     def schedule_validation_tasks(self, transformed_data: List[Dict[str, Any]]) -> None:
         """
-        Schedule async validation tasks for events with capture_triggered=True.
+        Schedule async validation tasks for all events.
         Uses asyncio to fire-and-forget without blocking.
         
         Args:
             transformed_data: List of transformed event data items
         """
         for item in transformed_data:
-            data = item.get("data", {})
-            if data.get("capture_triggered") is True:
-                validation_payload = self._build_validation_payload(item)
-                event_folder = validation_payload.get("event_folder", "unknown")
-                
-                # Fire-and-forget: schedule the async task
-                asyncio.create_task(self._trigger_validation(validation_payload))
-                logger.info(f"Validation task queued for: {event_folder}")
+            validation_payload = self._build_validation_payload(item)
+            event_folder = validation_payload.get("event_folder", "unknown")
+            
+            # Fire-and-forget: schedule the async task
+            asyncio.create_task(self._trigger_validation(validation_payload))
+            logger.info(f"Validation task queued for: {event_folder}")
 
 
 # Module-level singleton instance for easy import

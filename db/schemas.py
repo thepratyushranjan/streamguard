@@ -54,9 +54,9 @@ class EventData(BaseModel):
 class EventMeta(BaseModel):
     company_id: str  # Mandatory field (String)
     device_id: str   # Mandatory field (String)
-    cam_id: Union[int, str] = 0
+    cam_id: str = ""
     site_name: str = ""
-    zone_name: str  # Mandatory field (String)
+    zone_names: List[str] = Field(default_factory=list)  # Mandatory field (Array of Strings)
     ts: float = 0.0
     cam_name: Optional[str] = "Unknown"
     
@@ -65,14 +65,8 @@ class EventMeta(BaseModel):
     country: Optional[str] = ""
     state: Optional[str] = ""
     district: Optional[str] = ""
+    city: Optional[str] = ""
     site_id: Optional[str] = ""
-
-    @field_validator('cam_id', mode='before')
-    def parse_cam_id(cls, v):
-        try:
-            return int(v)
-        except (ValueError, TypeError):
-            return 0
 
 class CameraEventRequest(BaseModel):
     type: Literal['metric', 'event', 'ai-info', 'METRIC', 'EVENT', 'AI-INFO'] = "metric"
@@ -112,7 +106,7 @@ def score_to_uint8(value: Optional[float]) -> int:
 # Field name constants for mapping (DRY: avoids repetition in to_audit and services)
 METADATA_FIELDS = ['company_id', 'device_id', 'cam_id', 'cam_name', 'site_name', 
                    'site_id', 'event_timestamp', 'latitude', 'longitude', 
-                   'country', 'state', 'district']
+                   'country', 'state', 'district', 'city']
 SOP_FIELDS = ['sop_manned_air', 'sop_greeting', 'sop_uniform', 'sop_unauthorized', 'sop_cleanliness']
 SAFETY_FIELDS = ['du_cover_open', 'manhole_open', 'fuel_plastic_bottle', 'foreign_objects',
                  'smoking_detected', 'fire_detected', 'fight_detected', 'mob_gathering', 'unauthorized_area']
@@ -127,7 +121,7 @@ class AIResponseMetadata(BaseModel):
     """AI Response metadata section."""
     company_id: str = ""
     device_id: str = ""
-    cam_id: int = 0
+    cam_id: str = ""
     cam_name: str = ""
     site_name: str = ""
     site_id: str = ""
@@ -137,6 +131,7 @@ class AIResponseMetadata(BaseModel):
     country: str = ""
     state: str = ""
     district: str = ""
+    city: str = ""
     clip_duration_seconds: int = 0
     media_analyzed: int = 0
 
@@ -297,7 +292,7 @@ class SOPComplianceAudit(BaseModel):
     row_id: Optional[str] = None
     company_id: str = ""
     device_id: str = ""
-    cam_id: int = 0
+    cam_id: str = ""
     cam_name: str = ""
     site_name: str = ""
     site_id: str = ""
@@ -309,6 +304,7 @@ class SOPComplianceAudit(BaseModel):
     country: str = ""
     state: str = ""
     district: str = ""
+    city: str = ""
 
     # 5 CORE SOP TRIGGERS (1=Pass, 0=Fail, -1=N/A)
     sop_manned_air: int = -1
@@ -381,9 +377,11 @@ class SOPComplianceAuditResponse(SOPComplianceAudit):
 # --- System Health Schemas ---
 
 class CameraStatus(BaseModel):
-    cam_id: int = 0
+    cam_id: str = ""
+    cam_name: str = ""
+    zone_names: List[str] = Field(default_factory=list)
     status: Literal['online', 'offline', 'error'] = 'online'
-    fps: int = 0
+    fps: float = 0.0
 
 
 class SystemHealth(BaseModel):
@@ -393,9 +391,7 @@ class SystemHealth(BaseModel):
     device_id: str
     site_id: str
     site_name: str
-    cam_id: int = 0
-    cam_name: str = ""
-    event_timestamp: datetime
+    event_timestamp: int
 
     # Geo-Location (Current vs Registered)
     latitude: float = 0.0
@@ -407,12 +403,13 @@ class SystemHealth(BaseModel):
     country: str = ""
     state: str = ""
     district: str = ""
+    city: str = ""
 
     # Network & Performance
     primary_internet_speed: float = 0.0
     secondary_internet_speed: float = 0.0
-    cpu_usage_percent: int = 0
-    ram_usage_percent: int = 0
+    cpu_usage_percent: float = 0.0
+    ram_usage_percent: float = 0.0
     device_status: Literal['online', 'offline', 'error'] = 'online'
 
     # Nested Camera Status
@@ -427,9 +424,7 @@ class SystemHealthResponse(SystemHealth):
 
 class SystemHealthPayloadMeta(BaseModel):
     """Metadata from the incoming system health payload."""
-    event_timestamp: str  # ISO format string, will be parsed
-    cam_id: Union[int, str] = 0
-    cam_name: str = ""
+    event_timestamp: Union[int, str]  # Unix timestamp (int) or ISO string
     company_id: str
     device_id: str
     site_name: str = ""
@@ -439,25 +434,16 @@ class SystemHealthPayloadMeta(BaseModel):
     country: str = ""
     state: str = ""
     district: str = ""
-
-    @field_validator('cam_id', mode='before')
-    def parse_cam_id(cls, v):
-        if isinstance(v, str) and v.startswith('d'):
-            try:
-                return int(v[1:])
-            except (ValueError, TypeError):
-                return 0
-        try:
-            return int(v)
-        except (ValueError, TypeError):
-            return 0
+    city: str = ""
 
 
 class SystemHealthPayloadCameras(BaseModel):
     """Camera array data from the system health payload."""
-    cam_id: List[int] = Field(default_factory=list)
+    cam_id: List[str] = Field(default_factory=list)
+    cam_name: List[str] = Field(default_factory=list)
+    zone_names: List[List[str]] = Field(default_factory=list)
     status: List[str] = Field(default_factory=list)
-    fps: List[int] = Field(default_factory=list)
+    fps: List[float] = Field(default_factory=list)
 
 
 class SystemHealthPayloadDetails(BaseModel):
@@ -468,8 +454,8 @@ class SystemHealthPayloadDetails(BaseModel):
     device_ip_public: str = ""
     primary_internet_speed: float = 0.0
     secondary_internet_speed: float = 0.0
-    cpu_usage_percent: int = 0
-    ram_usage_percent: int = 0
+    cpu_usage_percent: float = 0.0
+    ram_usage_percent: float = 0.0
     device_status: Literal['online', 'offline', 'error'] = 'online'
     cameras: SystemHealthPayloadCameras = Field(default_factory=SystemHealthPayloadCameras)
 
