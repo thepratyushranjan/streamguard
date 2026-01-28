@@ -18,8 +18,7 @@ router = APIRouter(tags=["Vector"])
 @router.post("/vector")
 @handle_route_exceptions("Failed to process vector pipeline")
 async def trigger_vector_pipeline(
-    events: Union[List[Dict[str, Any]], Dict[str, Any]], 
-    client: Client = Depends(get_clickhouse)
+    events: Union[List[Dict[str, Any]], Dict[str, Any]]
 ):
     """Trigger Vector pipeline by receiving events directly in body."""
     # Normalize single event to list
@@ -54,7 +53,7 @@ async def trigger_vector_pipeline(
         
     # Convert to Pydantic models and insert into ClickHouse
     camera_events = [CameraEventRequest(**item) for item in transformed_data]
-    db_response = process_camera_events(camera_events, client)
+    db_response = process_camera_events(camera_events)
     
     return success_response(
         message="Vector pipeline processed",

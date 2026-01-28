@@ -125,7 +125,7 @@ class TriggerMergeService:
             return {"merged": False, "reason": "No triggers to merge"}
         
         try:
-            db_client = client or get_clickhouse()
+            db_client = get_clickhouse(company_id)
             
             # Escape values for SQL
             device_escaped = self._escape_string(device_id)

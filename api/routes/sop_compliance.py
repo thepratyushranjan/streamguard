@@ -13,9 +13,9 @@ router = APIRouter(tags=["SOP Compliance"])
 @router.post("/sop-compliance-audit")
 @handle_route_exceptions("Failed to save SOP compliance audit")
 async def save_sop_compliance_audit(
-    audit: SOPComplianceAudit,
-    client: Client = Depends(get_clickhouse)
+    audit: SOPComplianceAudit
 ):
     """Store SOP compliance audit record."""
+    client = get_clickhouse(audit.company_id)
     result = process_sop_audit(audit, client)
     return success_response(message="SOP compliance audit saved", inserted=result["inserted"])

@@ -54,11 +54,11 @@ app.include_router(sop_compliance_router)
 
 @app.on_event("startup")
 async def startup():
-    """Test connection on startup and initialize services"""
-    if ClickHouseConnection.test_connection():
-        logger.info(f"Connected to ClickHouse at {settings.clickhouse_host}:{settings.clickhouse_port}")
-    else:
-        logger.error("Failed to connect to ClickHouse")
+    # """Test connection on startup and initialize services"""
+    # if ClickHouseConnection.test_connection():
+    #     logger.info(f"Connected to ClickHouse at {settings.clickhouse_host}:{settings.clickhouse_port}")
+    # else:
+    #     logger.error("Failed to connect to ClickHouse")
     
     # Initialize validation service HTTP client
     await validation_service.initialize()

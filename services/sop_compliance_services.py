@@ -90,7 +90,8 @@ def save_ai_response_to_audit(ai_response: Dict[str, Any], client: Optional[Clie
     try:
         parsed = AIResponse.model_validate(ai_response)
         audit = parsed.to_audit()
-        db_client = client or get_clickhouse()
+        db_client = client or get_clickhouse(audit.company_id)
+        logger.debug(f"Using ClickHouse client for company {audit.company_id}. Client DB: {db_client.database}")
         result = process_sop_audit(audit, db_client)
         
         # Merge triggers to video_analytics_logs if save was successful
