@@ -104,7 +104,6 @@ def save_ai_response_to_audit(ai_response: Dict[str, Any], client: Optional[Clie
                 triggers=audit.event_triggers
             )
             result["trigger_merge"] = merge_result
-            logger.info(f"Trigger merge result: {merge_result}")
         
         return result
     except Exception as e:
@@ -117,7 +116,6 @@ def process_sop_audit(audit: SOPComplianceAudit, client: Client) -> Dict[str, An
     try:
         row = [_build_audit_row(audit)]
         client.insert('sop_compliance_audits', row, column_names=COLUMNS)
-        logger.info(f"Inserted SOP audit for site: {audit.site_id}")
         return {"success": True, "inserted": 1}
     except Exception as e:
         logger.error(f"SOP audit insert error: {e}", exc_info=True)

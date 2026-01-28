@@ -4,7 +4,7 @@ System Health Service Module
 Handles processing and database operations for system health data.
 Follows production-level patterns with proper error handling and logging.
 """
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 from datetime import datetime
 from fastapi import HTTPException
 from clickhouse_connect.driver import Client
@@ -16,13 +16,13 @@ logger = get_logger(__name__)
 # ClickHouse column names for system_health table
 SYSTEM_HEALTH_COLUMNS = [
     'company_id', 'device_id', 'site_id', 'site_name',
-    'cam_id', 'cam_name', 'event_timestamp',
+    'event_timestamp',
     'latitude', 'longitude', 'reg_latitude', 'reg_longitude',
     'device_ip_local', 'device_ip_public',
-    'country', 'state', 'district',
+    'country', 'state', 'district', 'city',
     'primary_internet_speed', 'secondary_internet_speed',
     'cpu_usage_percent', 'ram_usage_percent', 'device_status',
-    'cameras.cam_id', 'cameras.status', 'cameras.fps'
+    'cameras.cam_id', 'cameras.cam_name', 'cameras.zone_names', 'cameras.status', 'cameras.fps'
 ]
 
 # Status mapping for ClickHouse Enum
@@ -33,28 +33,38 @@ DEVICE_STATUS_MAP = {
 }
 
 
-def _parse_event_timestamp(timestamp_str: str) -> datetime:
+def _parse_event_timestamp_to_unix(timestamp_value: Union[str, int]) -> int:
     """
-    Parse event timestamp from various string formats.
+    Parse event timestamp from various formats to Unix timestamp.
     
     Args:
-        timestamp_str: Timestamp string in ISO or custom format
+        timestamp_value: Timestamp as int (Unix) or string (ISO)
         
     Returns:
-        datetime object
+        int: Unix timestamp
     """
+    if isinstance(timestamp_value, int):
+        return timestamp_value
+        
+    timestamp_str = str(timestamp_value)
+    dt = None
     try:
         # Handle ISO format: "2026-01-08 13:51:29" or "2026-01-08T13:51:29"
         for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f"]:
             try:
-                return datetime.strptime(timestamp_str, fmt)
+                dt = datetime.strptime(timestamp_str, fmt)
+                break
             except ValueError:
                 continue
+        
         # Fallback: try ISO format with timezone
-        return datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+        if not dt:
+            dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            
+        return int(dt.timestamp())
     except (ValueError, TypeError) as e:
         logger.warning(f"Failed to parse timestamp '{timestamp_str}': {e}, using current time")
-        return datetime.now()
+        return int(datetime.now().timestamp())
 
 
 def _normalize_status(status: str) -> str:
@@ -86,7 +96,7 @@ def _transform_payload_to_row(payload: SystemHealthPayloadRequest) -> List[Any]:
     cameras = details.cameras
     
     # Parse timestamp
-    event_ts = _parse_event_timestamp(meta.event_timestamp)
+    event_ts = _parse_event_timestamp_to_unix(meta.event_timestamp)
     
     # Transform camera arrays with status normalization
     camera_statuses = [_normalize_status(s) for s in cameras.status]
@@ -96,8 +106,6 @@ def _transform_payload_to_row(payload: SystemHealthPayloadRequest) -> List[Any]:
         str(meta.device_id),
         meta.site_id or "",
         meta.site_name or "",
-        int(meta.cam_id) if meta.cam_id else 0,
-        meta.cam_name or "",
         event_ts,
         meta.latitude or 0.0,
         meta.longitude or 0.0,
@@ -108,12 +116,15 @@ def _transform_payload_to_row(payload: SystemHealthPayloadRequest) -> List[Any]:
         meta.country or "",
         meta.state or "",
         meta.district or "",
+        meta.city or "",
         details.primary_internet_speed or 0.0,
         details.secondary_internet_speed or 0.0,
-        details.cpu_usage_percent or 0,
-        details.ram_usage_percent or 0,
+        details.cpu_usage_percent or 0.0,
+        details.ram_usage_percent or 0.0,
         _normalize_status(details.device_status),
         cameras.cam_id or [],
+        cameras.cam_name or [],
+        cameras.zone_names or [],
         camera_statuses or [],
         cameras.fps or []
     ]
@@ -150,15 +161,12 @@ def process_system_health(
             column_names=SYSTEM_HEALTH_COLUMNS
         )
         
-        logger.info(f"Successfully inserted {len(rows)} system health records")
-        
         return {
             "success": True,
             "inserted": len(rows)
         }
         
     except Exception as e:
-        logger.error(f"System health insert error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500, 
             detail=f"Database insert failed: {str(e)}"

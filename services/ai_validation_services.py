@@ -8,6 +8,7 @@ import httpx
 
 from core.config import get_settings
 from utils.logger import get_logger
+from services.sop_compliance_services import save_ai_response_to_audit
 
 logger = get_logger(__name__)
 
@@ -148,7 +149,6 @@ class AIValidationService:
     def _save_ai_response(self, response_data: Dict[str, Any], event_folder: str) -> bool:
         """Save AI response to audit database. Returns True if successful."""
         try:
-            from services.sop_compliance_services import save_ai_response_to_audit
             result = save_ai_response_to_audit(response_data)
             if result.get("success"):
                 return True
@@ -170,8 +170,6 @@ class AIValidationService:
         event_folder = validation_payload.get('event_folder', 'unknown')
         
         async def _make_request() -> httpx.Response:
-            logger.debug(f"AI Validation URL: {self._settings.ai_info_validation_url}")
-            logger.debug(f"AI Validation Payload: {validation_payload}")
             response = await self.http_client.post(
                 self._settings.ai_info_validation_url,
                 json=validation_payload,
@@ -197,8 +195,6 @@ class AIValidationService:
         """Build the AI validation payload from transformed data item."""
         data = item.get("data", {})
         evidence_path = data.get("evidence_path", "")
-        logger.debug(f"file_path: {evidence_path}")
-        
         return {
             "event_folder": AIValidationService._extract_event_folder(evidence_path),
             "event_data": {
@@ -211,15 +207,14 @@ class AIValidationService:
     
     def schedule_ai_validation_tasks(self, transformed_data: List[Dict[str, Any]]) -> None:
         """
-        Schedule async AI validation tasks for events with capture_triggered=True.
+        Schedule async AI validation tasks for all events.
         Uses asyncio to fire-and-forget without blocking.
         """
         for item in transformed_data:
-            if item.get("data", {}).get("capture_triggered") is True:
-                payload = self._build_ai_validation_payload(item)
-                event_folder = payload.get("event_folder", "unknown")
-                asyncio.create_task(self._trigger_ai_validation(payload))
-                logger.info(f"AI Validation task queued for: {event_folder}")
+            payload = self._build_ai_validation_payload(item)
+            event_folder = payload.get("event_folder", "unknown")
+            asyncio.create_task(self._trigger_ai_validation(payload))
+            logger.info(f"AI Validation task queued for: {event_folder}")
 
 
 # Module-level singleton instance for easy import

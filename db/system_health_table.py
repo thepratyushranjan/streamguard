@@ -6,9 +6,7 @@ CREATE TABLE IF NOT EXISTS system_health (
     device_id           String,
     site_id             String,
     site_name           LowCardinality(String),
-    cam_id              UInt16,
-    cam_name            LowCardinality(String),
-    event_timestamp     DateTime,
+    event_timestamp     UInt32,
 
     -- Geo-Location (Current vs Registered)
     latitude           Float64, -- Current GPS from device IP
@@ -20,22 +18,25 @@ CREATE TABLE IF NOT EXISTS system_health (
     country            LowCardinality(String),
     state              LowCardinality(String),
     district           LowCardinality(String),
+    city               LowCardinality(String),
 
     -- Network & Performance
     primary_internet_speed   Float32, -- Mbps
     secondary_internet_speed Float32, -- Mbps
-    cpu_usage_percent        UInt8,
-    ram_usage_percent        UInt8,
+    cpu_usage_percent        Float32,
+    ram_usage_percent        Float32,
     device_status            Enum8('online' = 1, 'offline' = 2, 'error' = 3),
 
     -- Nested Camera Status (Parallel Arrays)
     -- This allows 1 device to report N cameras in one row
-    `cameras.cam_id`   Array(UInt16),
-    `cameras.status`   Array(Enum8('online' = 1, 'offline' = 2, 'error' = 3)),
-    `cameras.fps`      Array(UInt8) -- Optional: helpful to see if stream is laggy
+    `cameras.cam_id`         Array(String),
+    `cameras.cam_name`       Array(String),
+    `cameras.zone_names`     Array(Array(String)),
+    `cameras.status`         Array(Enum8('online' = 1, 'offline' = 2, 'error' = 3)),
+    `cameras.fps`            Array(Float32) -- Optional: helpful to see if stream is laggy
 
 ) ENGINE = MergeTree()
-PARTITION BY toDate(event_timestamp)
+PARTITION BY toYYYYMMDD(toDateTime(event_timestamp))
 ORDER BY (company_id, site_id, device_id, event_timestamp)
 """
 
@@ -50,9 +51,7 @@ COLUMN_METADATA = {
     "device_id": {"type": "String", "description": "Device identifier"},
     "site_id": {"type": "String", "description": "Unique site ID"},
     "site_name": {"type": "LowCardinality(String)", "description": "Site/location name"},
-    "cam_id": {"type": "UInt16", "description": "Camera identifier"},
-    "cam_name": {"type": "LowCardinality(String)", "description": "Camera name"},
-    "event_timestamp": {"type": "DateTime", "description": "Timestamp of event", "partition": True},
+    "event_timestamp": {"type": "UInt32", "description": "Timestamp of event (Unix)", "partition": True},
     "latitude": {"type": "Float64", "description": "Current GPS latitude from device IP"},
     "longitude": {"type": "Float64", "description": "Current GPS longitude from device IP"},
     "reg_latitude": {"type": "Float64", "description": "Registered latitude from MongoDB"},
@@ -62,12 +61,15 @@ COLUMN_METADATA = {
     "country": {"type": "LowCardinality(String)", "description": "Country"},
     "state": {"type": "LowCardinality(String)", "description": "State"},
     "district": {"type": "LowCardinality(String)", "description": "District"},
+    "city": {"type": "LowCardinality(String)", "description": "City"},
     "primary_internet_speed": {"type": "Float32", "description": "Primary internet speed in Mbps"},
     "secondary_internet_speed": {"type": "Float32", "description": "Secondary internet speed in Mbps"},
-    "cpu_usage_percent": {"type": "UInt8", "description": "CPU usage percentage (0-100)"},
-    "ram_usage_percent": {"type": "UInt8", "description": "RAM usage percentage (0-100)"},
+    "cpu_usage_percent": {"type": "Float32", "description": "CPU usage percentage (0-100)"},
+    "ram_usage_percent": {"type": "Float32", "description": "RAM usage percentage (0-100)"},
     "device_status": {"type": "Enum8", "description": "Device status (online=1, offline=2, error=3)"},
-    "cameras.cam_id": {"type": "Array(UInt16)", "description": "Array of camera IDs"},
+    "cameras.cam_id": {"type": "Array(String)", "description": "Array of camera IDs"},
+    "cameras.cam_name": {"type": "Array(String)", "description": "Array of camera names"},
+    "cameras.zone_names": {"type": "Array(Array(String))", "description": "Array of zone names for each camera (nested array)"},
     "cameras.status": {"type": "Array(Enum8)", "description": "Array of camera statuses (online=1, offline=2, error=3)"},
-    "cameras.fps": {"type": "Array(UInt8)", "description": "Array of camera FPS values"},
+    "cameras.fps": {"type": "Array(Float32)", "description": "Array of camera FPS values"},
 }

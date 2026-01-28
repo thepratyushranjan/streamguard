@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS sop_compliance_audits (
     row_id UUID DEFAULT generateUUIDv4(),
     company_id String,
     device_id String,
-    cam_id UInt16,
+    cam_id String,
     cam_name LowCardinality(String),
     site_name LowCardinality(String),
     site_id String,
@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS sop_compliance_audits (
     country LowCardinality(String),
     state LowCardinality(String),
     district LowCardinality(String),
+    city LowCardinality(String),
 
     -- ═══════════════════════════════════════════════════════════════
     -- 5 CORE SOP TRIGGERS (Primary Dashboard Metrics)
@@ -120,7 +121,7 @@ COLUMN_METADATA = {
     "row_id": {"type": "UUID", "description": "Unique row identifier", "pk": True},
     "company_id": {"type": "String", "description": "Company identifier"},
     "device_id": {"type": "String", "description": "Device identifier"},
-    "cam_id": {"type": "UInt16", "description": "Camera identifier", "pk": True},
+    "cam_id": {"type": "String", "description": "Camera identifier", "pk": True},
     "cam_name": {"type": "LowCardinality(String)", "description": "Camera name"},
     "site_name": {"type": "LowCardinality(String)", "description": "Site/location name"},
     "site_id": {"type": "String", "description": "Unique site ID"},
