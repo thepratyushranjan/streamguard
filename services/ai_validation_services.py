@@ -194,16 +194,13 @@ class AIValidationService:
             response = await self._execute_with_retry(_make_request, event_folder, max_retries)
             if response:
                 # Merge original event metadata into AI response (in case AI doesn't return it)
-                response_data = response.json()
+                response_json = response.json()
+                # Extract validation_result from nested response structure
+                response_data = response_json.get('validation_result', response_json)
                 original_meta = validation_payload.get('event_data', {}).get('meta', {})
                 saved = self._save_ai_response(response_data, event_folder, original_meta)
                 status = "saved to audit" if saved else "API OK, audit save failed"
                 logger.info(f"AI Validation complete ({status}): {event_folder}")
-    
-    @staticmethod
-    def _extract_event_folder(evidence_path: str) -> str:
-        """Extract event folder name from evidence path."""
-        return evidence_path.rstrip("/").split("/")[-1] if evidence_path else ""
     
     @staticmethod
     def _build_ai_validation_payload(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -211,7 +208,7 @@ class AIValidationService:
         data = item.get("data", {})
         evidence_path = data.get("evidence_path", "")
         return {
-            "event_folder": AIValidationService._extract_event_folder(evidence_path),
+            "event_folder": evidence_path,
             "event_data": {
                 "type": item.get("type", ""),
                 "processed_at": item.get("processed_at", 0),
