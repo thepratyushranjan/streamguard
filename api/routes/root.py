@@ -31,20 +31,26 @@ async def upload_folder(
     if not file.filename.endswith(".zip"):
         raise HTTPException(status_code=400, detail="File must be a .zip")
 
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    # Get the project root directory (2 levels up from api/routes/)
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    
+    # Create uploads directory in project root if not exists
+    UPLOADS_DIR = os.path.join(PROJECT_ROOT, "uploads")
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
 
-    zip_base_name = os.path.splitext(file.filename)[0]  
-    extract_dir = os.path.join(BASE_DIR, zip_base_name)
-
-    os.makedirs(extract_dir, exist_ok=True)
-
-    zip_path = os.path.join(extract_dir, file.filename)
+    # Save the zip file with its original name in uploads directory
+    zip_path = os.path.join(UPLOADS_DIR, file.filename)
 
     with open(zip_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    background_tasks.add_task(process_and_upload_workflow, zip_path,extract_dir,file_name)
-    # process_and_upload_workflow(zip_path,extract_dir,file_name)
+    # Create extraction directory inside uploads with the zip's base name
+    zip_base_name = os.path.splitext(file.filename)[0]
+    extract_dir = os.path.join(UPLOADS_DIR, zip_base_name)
+    os.makedirs(extract_dir, exist_ok=True)
+
+    background_tasks.add_task(process_and_upload_workflow, zip_path, extract_dir, file_name)
+    # process_and_upload_workflow(zip_path, extract_dir, file_name)
 
     return {
         "status": "success",
