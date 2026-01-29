@@ -147,8 +147,6 @@ def process_system_health(
     Raises:
         HTTPException: On database insert failure
     """
-    if not payloads:
-        return {"success": True, "inserted": 0, "message": "No payloads to process"}
     
     try:
         # Transform all payloads to rows
