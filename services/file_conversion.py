@@ -37,14 +37,14 @@ def get_or_create_bucket(storage_client, bucket_name):
         return bucket
 
     except NotFound:
-        logging.info(f"Bucket '{bucket_name}' not found. Creating it...")
-        try:
-            bucket = storage_client.create_bucket(bucket_name)
-            logging.info(f"Bucket '{bucket_name}' created successfully.")
-            return bucket
-        except Exception as create_error:
-            logging.error(f"Failed to create bucket '{bucket_name}': {create_error}")
-            raise
+        logging.info(f"Bucket '{bucket_name}' not found")
+        # try:
+        #     bucket = storage_client.create_bucket(bucket_name)
+        #     logging.info(f"Bucket '{bucket_name}' created successfully.")
+        #     return bucket
+        # except Exception as create_error:
+        #     logging.error(f"Failed to create bucket '{bucket_name}': {create_error}")
+        #     raise
 
     except Exception as e:
         logging.error(f"Error checking bucket '{bucket_name}': {e}")
@@ -163,7 +163,8 @@ def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str)
                     file_path = convert_image_to_webp(file_path)
                 
                 rel_path = os.path.relpath(file_path, extract_path)
-                blob_name = f"events/{rel_path}".replace("\\", "/")
+                folder_name = os.path.basename(extract_path)
+                blob_name = f"events/{folder_name}/{rel_path}".replace("\\", "/")
                 
                 files_to_upload.append((blob_name, file_path))
         logger.info(f"Prepared {len(files_to_upload)} files for upload.")

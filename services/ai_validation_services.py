@@ -145,15 +145,27 @@ class AIValidationService:
         
         logger.error(f"Failed after {retries} retries: {context}")
         return None
+    # Fields to copy from original event metadata
+    _META_FIELDS = ('company_id', 'device_id', 'cam_id', 'cam_name', 'site_name',
+                    'site_id', 'latitude', 'longitude', 'country', 'state', 'district', 'city')
     
-    def _save_ai_response(self, response_data: Dict[str, Any], event_folder: str) -> bool:
-        """Save AI response to audit database. Returns True if successful."""
+    def _save_ai_response(self, response_data: Dict[str, Any], event_folder: str, original_meta: Dict[str, Any] = None) -> bool:
+        """Save AI response to audit database, merging original metadata if needed."""
         try:
+            if original_meta:
+                meta = response_data.setdefault('metadata', {})
+                # Fill missing fields from original meta
+                for key in self._META_FIELDS:
+                    if not meta.get(key) and original_meta.get(key):
+                        meta[key] = original_meta[key]
+                # Map 'ts' to 'event_timestamp' if missing
+                if not meta.get('event_timestamp') and original_meta.get('ts'):
+                    meta['event_timestamp'] = int(original_meta['ts'])
+            
             result = save_ai_response_to_audit(response_data)
-            if result.get("success"):
-                return True
-            logger.warning(f"Failed to save AI response: {result.get('error')}")
-            return False
+            if not result.get("success"):
+                logger.warning(f"Failed to save AI response: {result.get('error')}")
+            return result.get("success", False)
         except Exception as e:
             logger.error(f"Error saving AI response to audit: {e}")
             return False
@@ -181,7 +193,10 @@ class AIValidationService:
         async with self._validation_semaphore:
             response = await self._execute_with_retry(_make_request, event_folder, max_retries)
             if response:
-                saved = self._save_ai_response(response.json(), event_folder)
+                # Merge original event metadata into AI response (in case AI doesn't return it)
+                response_data = response.json()
+                original_meta = validation_payload.get('event_data', {}).get('meta', {})
+                saved = self._save_ai_response(response_data, event_folder, original_meta)
                 status = "saved to audit" if saved else "API OK, audit save failed"
                 logger.info(f"AI Validation complete ({status}): {event_folder}")
     
