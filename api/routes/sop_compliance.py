@@ -15,6 +15,7 @@ router = APIRouter(tags=["SOP Compliance"])
 async def save_sop_compliance_audit(
     audit: SOPComplianceAudit
 ):
+    print(f"""audit: {audit}""")
     """Store SOP compliance audit record."""
     client = get_clickhouse(audit.company_id)
     result = process_sop_audit(audit, client)

@@ -145,11 +145,9 @@ class ValidationService:
         """
         data = item.get("data", {})
         evidence_path = data.get("evidence_path", "")
-        logger.debug(f"file_path: {evidence_path}")
-        event_folder = evidence_path.rstrip("/").split("/")[-1] if evidence_path else ""
         
         return {
-            "event_folder": event_folder,
+            "event_folder": evidence_path,
             "event_data": {
                 "type": item.get("type", ""),
                 "processed_at": item.get("processed_at", 0),
