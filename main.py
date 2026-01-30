@@ -7,6 +7,7 @@ from api.routes import (
     health_router, 
     events_router,
     vector_router,
+    vector_office_router,
     system_health_router,
     sop_compliance_router,
 )
@@ -48,6 +49,7 @@ app.include_router(root_router)
 app.include_router(health_router)
 app.include_router(events_router)
 app.include_router(vector_router)
+app.include_router(vector_office_router)
 app.include_router(system_health_router)
 app.include_router(sop_compliance_router)
 
