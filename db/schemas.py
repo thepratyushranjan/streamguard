@@ -468,3 +468,13 @@ class SystemHealthPayloadRequest(BaseModel):
     type: str = "system-health"
     meta: SystemHealthPayloadMeta
     system_details: SystemHealthPayloadDetails = Field(default_factory=SystemHealthPayloadDetails)
+
+
+# --- Triage Update Schema ---
+
+class TriageUpdateRequest(BaseModel):
+    """Request body for updating triage fields."""
+    triaged_by: Optional[str] = None
+    triage_timestamp: Optional[int] = None
+    ai_insights: Optional[str] = None
+    triage_notes: Optional[str] = None

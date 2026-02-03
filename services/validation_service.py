@@ -2,6 +2,7 @@
 Validation Service Module
 """
 import asyncio
+import threading
 from typing import Dict, Any, List, Optional
 import httpx
 
@@ -19,6 +20,7 @@ class ValidationService:
     - Connection pooling with configurable limits
     - Concurrency control via semaphore
     - Automatic retry with exponential backoff
+    - Queue-based batching with delayed processing
     - Graceful shutdown support
     """
     
@@ -39,6 +41,9 @@ class ValidationService:
     # Retry configuration
     DEFAULT_MAX_RETRIES = 3
     
+    # Batch processing delay (in seconds)
+    BATCH_DELAY_SECONDS = 30
+    
     def __new__(cls) -> "ValidationService":
         """Ensure singleton pattern."""
         if cls._instance is None:
@@ -53,6 +58,12 @@ class ValidationService:
         
         self._settings = get_settings()
         self._validation_semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_VALIDATIONS)
+        
+        # Queue-based batching
+        self._event_queue: List[Dict[str, Any]] = []
+        self._queue_lock = threading.Lock()
+        self._batch_timer: Optional[threading.Timer] = None
+        
         self._initialized = True
     
     @property
@@ -171,8 +182,74 @@ class ValidationService:
             # Fire-and-forget: schedule the async task
             asyncio.create_task(self._trigger_validation(validation_payload))
             logger.info(f"Validation task queued for: {event_folder}")
+    
+    def queue_validation_tasks(self, transformed_data: List[Dict[str, Any]]) -> None:
+        """
+        Queue events for batch validation after a delay.
+        Events are collected and processed together after BATCH_DELAY_SECONDS.
+        
+        This is more efficient than creating individual timers for each request,
+        as it uses a single timer for all queued events.
+        
+        Args:
+            transformed_data: List of transformed event data items
+        """
+        with self._queue_lock:
+            # Add all events to the queue
+            self._event_queue.extend(transformed_data)
+            queue_size = len(self._event_queue)
+            
+            # Start timer if not already running
+            if self._batch_timer is None or not self._batch_timer.is_alive():
+                self._batch_timer = threading.Timer(
+                    self.BATCH_DELAY_SECONDS,
+                    self._process_queued_events
+                )
+                self._batch_timer.daemon = True
+                self._batch_timer.start()
+                logger.info(f"Started batch timer for {self.BATCH_DELAY_SECONDS}s with {queue_size} events")
+            else:
+                logger.debug(f"Added {len(transformed_data)} events to queue (total: {queue_size})")
+    
+    def _process_queued_events(self) -> None:
+        """
+        Process all queued events. Called by the batch timer.
+        This runs in a separate thread, so we need to create a new event loop.
+        """
+        with self._queue_lock:
+            if not self._event_queue:
+                logger.debug("No events in queue to process")
+                return
+            
+            # Take all events from queue
+            events_to_process = self._event_queue.copy()
+            self._event_queue.clear()
+            self._batch_timer = None
+        
+        logger.info(f"Processing batch of {len(events_to_process)} validation events")
+        
+        # Create a new event loop for this thread and run validations
+        # This avoids "Event loop is closed" errors since timer runs in a separate thread
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(self._run_batch_validations(events_to_process))
+            finally:
+                loop.close()
+        except Exception as e:
+            logger.error(f"Error processing validation batch: {e}")
+    
+    async def _run_batch_validations(self, events: List[Dict[str, Any]]) -> None:
+        """Run batch validations asynchronously."""
+        tasks = []
+        for item in events:
+            validation_payload = self._build_validation_payload(item)
+            tasks.append(self._trigger_validation(validation_payload))
+        
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 # Module-level singleton instance for easy import
 validation_service = ValidationService()
-

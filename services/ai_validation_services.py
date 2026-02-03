@@ -2,6 +2,7 @@
 AI Validation Service Module
 """
 import asyncio
+import threading
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional, Callable, Awaitable
 import httpx
@@ -54,6 +55,7 @@ class AIValidationService:
     - Connection pooling with configurable limits
     - Concurrency control via semaphore
     - Automatic retry with exponential backoff
+    - Queue-based batching with delayed processing
     - Graceful shutdown support
     """
     
@@ -65,6 +67,9 @@ class AIValidationService:
     CONNECTION_CFG = ConnectionConfig()
     TIMEOUT_CFG = TimeoutConfig()
     RETRY_CFG = RetryConfig()
+    
+    # Batch processing delay (in seconds)
+    BATCH_DELAY_SECONDS = 30
     
     def __new__(cls) -> "AIValidationService":
         """Ensure singleton pattern."""
@@ -79,6 +84,12 @@ class AIValidationService:
             return
         self._settings = get_settings()
         self._validation_semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_VALIDATIONS)
+        
+        # Queue-based batching
+        self._event_queue: List[Dict[str, Any]] = []
+        self._queue_lock = threading.Lock()
+        self._batch_timer: Optional[threading.Timer] = None
+        
         self._initialized = True
     
     @property
@@ -227,8 +238,74 @@ class AIValidationService:
             event_folder = payload.get("event_folder", "unknown")
             asyncio.create_task(self._trigger_ai_validation(payload))
             logger.info(f"AI Validation task queued for: {event_folder}")
+    
+    def queue_ai_validation_tasks(self, transformed_data: List[Dict[str, Any]]) -> None:
+        """
+        Queue events for batch AI validation after a delay.
+        Events are collected and processed together after BATCH_DELAY_SECONDS.
+        
+        This is more efficient than creating individual timers for each request,
+        as it uses a single timer for all queued events.
+        
+        Args:
+            transformed_data: List of transformed event data items
+        """
+        with self._queue_lock:
+            # Add all events to the queue
+            self._event_queue.extend(transformed_data)
+            queue_size = len(self._event_queue)
+            
+            # Start timer if not already running
+            if self._batch_timer is None or not self._batch_timer.is_alive():
+                self._batch_timer = threading.Timer(
+                    self.BATCH_DELAY_SECONDS,
+                    self._process_queued_events
+                )
+                self._batch_timer.daemon = True
+                self._batch_timer.start()
+                logger.info(f"Started AI validation batch timer for {self.BATCH_DELAY_SECONDS}s with {queue_size} events")
+            else:
+                logger.debug(f"Added {len(transformed_data)} AI events to queue (total: {queue_size})")
+    
+    def _process_queued_events(self) -> None:
+        """
+        Process all queued events. Called by the batch timer.
+        This runs in a separate thread, so we need to create a new event loop.
+        """
+        with self._queue_lock:
+            if not self._event_queue:
+                logger.debug("No AI events in queue to process")
+                return
+            
+            # Take all events from queue
+            events_to_process = self._event_queue.copy()
+            self._event_queue.clear()
+            self._batch_timer = None
+        
+        logger.info(f"Processing batch of {len(events_to_process)} AI validation events")
+        
+        # Create a new event loop for this thread and run validations
+        # This avoids "Event loop is closed" errors since timer runs in a separate thread
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(self._run_batch_validations(events_to_process))
+            finally:
+                loop.close()
+        except Exception as e:
+            logger.error(f"Error processing AI validation batch: {e}")
+    
+    async def _run_batch_validations(self, events: List[Dict[str, Any]]) -> None:
+        """Run batch AI validations asynchronously."""
+        tasks = []
+        for item in events:
+            payload = self._build_ai_validation_payload(item)
+            tasks.append(self._trigger_ai_validation(payload))
+        
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 # Module-level singleton instance for easy import
 ai_validation_service = AIValidationService()
-
