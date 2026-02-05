@@ -25,14 +25,14 @@ CREATE TABLE IF NOT EXISTS system_health (
     secondary_internet_speed Float32, -- Mbps
     cpu_usage_percent        Float32,
     ram_usage_percent        Float32,
-    device_status            Enum8('online' = 1, 'offline' = 2, 'error' = 3),
+    device_status            Enum8('online' = 1, 'offline' = 2, 'error' = 3, 'restart' = 4),
 
     -- Nested Camera Status (Parallel Arrays)
     -- This allows 1 device to report N cameras in one row
     `cameras.cam_id`         Array(String),
     `cameras.cam_name`       Array(String),
     `cameras.zone_names`     Array(Array(String)),
-    `cameras.status`         Array(Enum8('online' = 1, 'offline' = 2, 'error' = 3)),
+    `cameras.status`         Array(Enum8('online' = 1, 'offline' = 2, 'error' = 3, 'restart' = 4)),
     `cameras.fps`            Array(Float32) -- Optional: helpful to see if stream is laggy
 
 ) ENGINE = MergeTree()
@@ -66,10 +66,10 @@ COLUMN_METADATA = {
     "secondary_internet_speed": {"type": "Float32", "description": "Secondary internet speed in Mbps"},
     "cpu_usage_percent": {"type": "Float32", "description": "CPU usage percentage (0-100)"},
     "ram_usage_percent": {"type": "Float32", "description": "RAM usage percentage (0-100)"},
-    "device_status": {"type": "Enum8", "description": "Device status (online=1, offline=2, error=3)"},
+    "device_status": {"type": "Enum8", "description": "Device status (online=1, offline=2, error=3, restart=4)"},
     "cameras.cam_id": {"type": "Array(String)", "description": "Array of camera IDs"},
     "cameras.cam_name": {"type": "Array(String)", "description": "Array of camera names"},
     "cameras.zone_names": {"type": "Array(Array(String))", "description": "Array of zone names for each camera (nested array)"},
-    "cameras.status": {"type": "Array(Enum8)", "description": "Array of camera statuses (online=1, offline=2, error=3)"},
+    "cameras.status": {"type": "Array(Enum8)", "description": "Array of camera statuses (online=1, offline=2, error=3, restart=4)"},
     "cameras.fps": {"type": "Array(Float32)", "description": "Array of camera FPS values"},
 }
