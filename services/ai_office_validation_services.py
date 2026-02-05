@@ -1,29 +1,29 @@
 """
-AI Validation Service Module
+AI Office Validation Service Module
 
-Handles AI validation for standard SOP compliance events.
+Handles AI validation for office SOP compliance events.
 """
 from typing import Dict, Any, Optional
 
 from services.base_ai_validation_service import BaseAIValidationService
-from services.sop_compliance_services import save_ai_response_to_audit
+from services.office_sop_compliance_services import save_office_ai_response_to_audit
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class AIValidationService(BaseAIValidationService):
+class AIOfficeValidationService(BaseAIValidationService):
     """
-    Singleton service for standard AI validation API requests.
+    Singleton service for office AI validation API requests.
     
     Extends BaseAIValidationService with:
-    - Standard AI validation API endpoint
-    - Standard SOP compliance audit storage
+    - Office AI validation API endpoint
+    - Office SOP compliance audit storage
     """
     
-    _instance: Optional["AIValidationService"] = None
+    _instance: Optional["AIOfficeValidationService"] = None
     
-    def __new__(cls) -> "AIValidationService":
+    def __new__(cls) -> "AIOfficeValidationService":
         """Ensure singleton pattern."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -38,8 +38,8 @@ class AIValidationService(BaseAIValidationService):
         self._initialized = True
     
     def _get_api_url(self) -> str:
-        """Return the standard AI validation API URL."""
-        return self._settings.ai_info_validation_url
+        """Return the office AI validation API URL."""
+        return self._settings.ai_office_validation_url
     
     def _save_ai_response(
         self,
@@ -47,19 +47,19 @@ class AIValidationService(BaseAIValidationService):
         event_folder: str,
         original_meta: Optional[Dict[str, Any]] = None
     ) -> bool:
-        """Save AI response to standard SOP compliance audit database."""
+        """Save AI response to office SOP compliance audit database."""
         try:
             if original_meta:
                 self._merge_metadata(response_data, original_meta)
             
-            result = save_ai_response_to_audit(response_data)
+            result = save_office_ai_response_to_audit(response_data)
             if not result.get("success"):
-                logger.warning(f"Failed to save AI response: {result.get('error')}")
+                logger.warning(f"Failed to save Office AI response: {result.get('error')}")
             return result.get("success", False)
         except Exception as e:
-            logger.error(f"Error saving AI response to audit: {e}")
+            logger.error(f"Error saving Office AI response to audit: {e}")
             return False
 
 
 # Module-level singleton instance for easy import
-ai_validation_service = AIValidationService()
+ai_office_validation_service = AIOfficeValidationService()

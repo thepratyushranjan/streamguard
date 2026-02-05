@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     @property
     def ai_info_validation_url(self) -> str:
         return f"{self.validation_base_url.rstrip('/')}/api/v1/validation/ai-info-validate"
+
+    @property
+    def ai_office_validation_url(self) -> str:
+        return f"{self.validation_base_url.rstrip('/')}/api/v1/validation/ai-info-office"
     
     class Config:
         env_file = ".env"

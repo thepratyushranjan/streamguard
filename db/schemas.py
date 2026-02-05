@@ -478,3 +478,407 @@ class TriageUpdateRequest(BaseModel):
     triage_timestamp: Optional[int] = None
     ai_insights: Optional[str] = None
     triage_notes: Optional[str] = None
+
+
+# OFFICE COMPLIANCE AUDIT SCHEMAS
+
+OFFICE_METADATA_FIELDS = [
+    'company_id', 'device_id', 'cam_id', 'cam_name', 'site_name', 'site_id',
+    'event_timestamp', 'latitude', 'longitude', 'country', 'state', 'district', 'city',
+    'clip_duration_seconds', 'analysis_mode'
+]
+OFFICE_SOP_FIELDS = [
+    'sop_access_control', 'sop_safety_equipment', 'sop_uniform_compliance',
+    'sop_visitor_management', 'sop_emergency_readiness'
+]
+OFFICE_CRITICAL_ALERT_FIELDS = [
+    'unauthorized_zone_entry', 'fire_smoke_detected', 'emergency_exit_blocked',
+    'crowd_density_critical', 'physical_altercation', 'credential_sharing',
+    'attendance_mismatch', 'server_room_entry', 'lone_worker_hazard', 'workplace_violence'
+]
+OFFICE_HIGH_ALERT_FIELDS = [
+    'tailgating_entry', 'fire_equipment_obstructed', 'safety_glasses_missing',
+    'fall_incident', 'suspicious_concealment', 'abandoned_object', 'camera_offline',
+    'early_departure', 'lone_worker_extended', 'visitor_without_escort',
+    'property_removal', 'contractor_ppe_missing'
+]
+OFFICE_MEDIUM_ALERT_FIELDS = [
+    'trip_hazard_object', 'smoking_non_designated', 'id_badge_not_visible',
+    'safety_signage_obstructed', 'first_aid_inaccessible', 'extended_break',
+    'workstation_absence', 'visitor_badge_missing'
+]
+OFFICE_LOW_ALERT_FIELDS = ['improper_waste_disposal', 'uniform_non_compliance']
+OFFICE_SCORE_FIELDS = [
+    'uniform_score', 'safety_score', 'cleanliness_score',
+    'access_compliance_score', 'overall_score'
+]
+OFFICE_COUNT_FIELDS = [
+    'people_count', 'employee_count', 'visitor_count',
+    'contractor_count', 'unidentified_count', 'media_analyzed'
+]
+OFFICE_ZONE_FIELDS = ['zone_id', 'zone_name', 'zone_type', 'authorized_access_only']
+OFFICE_ZONE_KPI_FIELDS = [
+    'unauthorized_presence', 'outside_schedule', 'occupancy_mismatch',
+    'after_hours_presence', 'after_shift', 'cross_role_violation', 'cross_department',
+    'no_badge', 'unescorted', 'overstay', 'unauthorized_entry_attempt',
+    'tailgating_incident', 'door_anomaly', 'ppe_violation', 'missing_ppe',
+    'safety_breach', 'group_violation', 'loitering', 'crowd_violation',
+    'proximity_violation', 'repeated_access', 'infrastructure_violation',
+    'event_violation', 'active_event_type'
+]
+OFFICE_AGGREGATE_FIELDS = [
+    'critical_issues_count', 'high_issues_count', 'medium_issues_count',
+    'low_issues_count', 'total_issues_count', 'overall_compliance_pct'
+]
+
+
+class OfficeAIResponseMetadata(BaseModel):
+    """Office AI Response metadata section."""
+    company_id: str = ""
+    device_id: str = ""
+    cam_id: str = ""
+    cam_name: str = ""
+    site_name: str = ""
+    site_id: str = ""
+    event_timestamp: int = 0
+    latitude: float = 0.0
+    longitude: float = 0.0
+    country: str = ""
+    state: str = ""
+    district: str = ""
+    city: str = ""
+    clip_duration_seconds: int = 0
+    media_analyzed: int = 0
+    analysis_mode: str = "standard"
+
+
+class OfficeAIResponseCriticalAlerts(BaseModel):
+    """Office AI Response critical alerts (1=Issue, 0=Clear, -1=N/A)."""
+    unauthorized_zone_entry: int = -1
+    fire_smoke_detected: int = -1
+    emergency_exit_blocked: int = -1
+    crowd_density_critical: int = -1
+    physical_altercation: int = -1
+    credential_sharing: int = -1
+    attendance_mismatch: int = -1
+    server_room_entry: int = -1
+    lone_worker_hazard: int = -1
+    workplace_violence: int = -1
+
+
+class OfficeAIResponseHighAlerts(BaseModel):
+    """Office AI Response high alerts (1=Issue, 0=Clear, -1=N/A)."""
+    tailgating_entry: int = -1
+    fire_equipment_obstructed: int = -1
+    safety_glasses_missing: int = -1
+    fall_incident: int = -1
+    suspicious_concealment: int = -1
+    abandoned_object: int = -1
+    camera_offline: int = -1
+    early_departure: int = -1
+    lone_worker_extended: int = -1
+    visitor_without_escort: int = -1
+    property_removal: int = -1
+    contractor_ppe_missing: int = -1
+
+
+class OfficeAIResponseMediumAlerts(BaseModel):
+    """Office AI Response medium alerts (1=Issue, 0=Clear, -1=N/A)."""
+    trip_hazard_object: int = -1
+    smoking_non_designated: int = -1
+    id_badge_not_visible: int = -1
+    safety_signage_obstructed: int = -1
+    first_aid_inaccessible: int = -1
+    extended_break: int = -1
+    workstation_absence: int = -1
+    visitor_badge_missing: int = -1
+
+
+class OfficeAIResponseLowAlerts(BaseModel):
+    """Office AI Response low alerts (1=Issue, 0=Clear, -1=N/A)."""
+    improper_waste_disposal: int = -1
+    uniform_non_compliance: int = -1
+
+
+class OfficeAIResponseScores(BaseModel):
+    """Office AI Response scores (0.0-1.0 float scale)."""
+    uniform_compliance_score: Optional[float] = 0.0
+    safety_score: Optional[float] = 0.0
+    cleanliness_score: Optional[float] = 0.0
+    access_compliance_score: Optional[float] = 0.0
+    overall_compliance_score: Optional[float] = 0.0
+
+
+class OfficeAIResponseCounts(BaseModel):
+    """Office AI Response counts."""
+    people_count: int = 0
+    employee_count: int = 0
+    visitor_count: int = 0
+    contractor_count: int = 0
+    unidentified_count: int = 0
+
+
+class OfficeAIResponseZoneAnalysis(BaseModel):
+    """Office AI Response zone analysis."""
+    zone_id: str = ""
+    zone_name: str = ""
+    zone_type: str = ""
+    occupancy_level: str = "low"
+    authorized_access_only: bool = False
+
+
+class OfficeAIResponseFaceMatch(BaseModel):
+    """Office AI Response face match entry."""
+    identity_id: str = ""
+    confidence: float = 0.0
+    location: str = ""
+    timestamp_offset: int = 0
+
+
+class OfficeAIResponseClassification(BaseModel):
+    """Office AI Response classification."""
+    status: str = "safe"
+    utilization: str = "low"
+
+
+class OfficeAIResponseAggregates(BaseModel):
+    """Office AI Response aggregates."""
+    critical_issues_count: int = 0
+    high_issues_count: int = 0
+    medium_issues_count: int = 0
+    low_issues_count: int = 0
+    total_issues_count: int = 0
+    overall_compliance_pct: int = 0
+
+
+class OfficeAIResponseSOP(BaseModel):
+    """Office AI Response SOP core triggers (1=Pass, 0=Fail, -1=N/A)."""
+    sop_access_control: int = -1
+    sop_safety_equipment: int = -1
+    sop_uniform_compliance: int = -1
+    sop_visitor_management: int = -1
+    sop_emergency_readiness: int = -1
+
+
+class OfficeAIResponse(BaseModel):
+    """Complete Office AI validation response schema."""
+    metadata: OfficeAIResponseMetadata = Field(default_factory=OfficeAIResponseMetadata)
+    critical_alerts: OfficeAIResponseCriticalAlerts = Field(default_factory=OfficeAIResponseCriticalAlerts)
+    high_alerts: OfficeAIResponseHighAlerts = Field(default_factory=OfficeAIResponseHighAlerts)
+    medium_alerts: OfficeAIResponseMediumAlerts = Field(default_factory=OfficeAIResponseMediumAlerts)
+    low_alerts: OfficeAIResponseLowAlerts = Field(default_factory=OfficeAIResponseLowAlerts)
+    scores: OfficeAIResponseScores = Field(default_factory=OfficeAIResponseScores)
+    counts: OfficeAIResponseCounts = Field(default_factory=OfficeAIResponseCounts)
+    zone_analysis: OfficeAIResponseZoneAnalysis = Field(default_factory=OfficeAIResponseZoneAnalysis)
+    face_matches: List[OfficeAIResponseFaceMatch] = Field(default_factory=list)
+    classification: OfficeAIResponseClassification = Field(default_factory=OfficeAIResponseClassification)
+    triggers: List[str] = Field(default_factory=list)
+    ai_summary: str = ""
+    aggregates: OfficeAIResponseAggregates = Field(default_factory=OfficeAIResponseAggregates)
+    sop: OfficeAIResponseSOP = Field(default_factory=OfficeAIResponseSOP)
+
+    def _copy_fields(self, source: BaseModel, fields: List[str]) -> dict:
+        """Copy specified fields from source model to dict."""
+        return {field: getattr(source, field, None) for field in fields if hasattr(source, field)}
+
+    def _extract_faces(self) -> dict:
+        """Extract face data into separate arrays."""
+        return {
+            'faces_identity_id': [f.identity_id for f in self.face_matches],
+            'faces_confidence': [f.confidence for f in self.face_matches],
+            'faces_location': [f.location for f in self.face_matches],
+            'faces_timestamp_offset': [f.timestamp_offset for f in self.face_matches],
+        }
+
+    def to_audit(self) -> "OfficeComplianceAudit":
+        """Convert AI response to OfficeComplianceAudit model."""
+        audit_data = {}
+
+        # Copy metadata fields
+        audit_data.update(self._copy_fields(self.metadata, OFFICE_METADATA_FIELDS))
+        audit_data['media_analyzed'] = self.metadata.media_analyzed
+
+        # Copy SOP fields
+        audit_data.update(self._copy_fields(self.sop, OFFICE_SOP_FIELDS))
+
+        # Copy alert fields
+        audit_data.update(self._copy_fields(self.critical_alerts, OFFICE_CRITICAL_ALERT_FIELDS))
+        audit_data.update(self._copy_fields(self.high_alerts, OFFICE_HIGH_ALERT_FIELDS))
+        audit_data.update(self._copy_fields(self.medium_alerts, OFFICE_MEDIUM_ALERT_FIELDS))
+        audit_data.update(self._copy_fields(self.low_alerts, OFFICE_LOW_ALERT_FIELDS))
+
+        # Copy scores (map input field names to DB field names)
+        audit_data['uniform_score'] = self.scores.uniform_compliance_score or 0.0
+        audit_data['safety_score'] = self.scores.safety_score or 0.0
+        audit_data['cleanliness_score'] = self.scores.cleanliness_score or 0.0
+        audit_data['access_compliance_score'] = self.scores.access_compliance_score or 0.0
+        audit_data['overall_score'] = self.scores.overall_compliance_score or 0.0
+
+        # Copy counts
+        audit_data.update(self._copy_fields(self.counts, OFFICE_COUNT_FIELDS))
+
+        # Copy zone analysis
+        audit_data['zone_id'] = self.zone_analysis.zone_id
+        audit_data['zone_name'] = self.zone_analysis.zone_name
+        audit_data['zone_type'] = self.zone_analysis.zone_type
+        audit_data['authorized_access_only'] = 1 if self.zone_analysis.authorized_access_only else 0
+
+        # Extract face recognition data
+        audit_data.update(self._extract_faces())
+
+        # Classification and triggers
+        audit_data['status'] = self.classification.status
+        audit_data['utilization'] = self.classification.utilization
+        audit_data['event_triggers'] = self.triggers
+        audit_data['ai_summary'] = self.ai_summary
+
+        # Aggregates
+        audit_data.update(self._copy_fields(self.aggregates, OFFICE_AGGREGATE_FIELDS))
+
+        return OfficeComplianceAudit(**audit_data)
+
+
+class OfficeComplianceAudit(BaseModel):
+    """Office Compliance Audit model for database storage."""
+    # METADATA
+    row_id: Optional[str] = None
+    company_id: str = ""
+    device_id: str = ""
+    cam_id: str = ""
+    cam_name: str = ""
+    site_name: str = ""
+    site_id: str = ""
+    event_timestamp: int = 0
+
+    # Geo-Location
+    latitude: float = 0.0
+    longitude: float = 0.0
+    country: str = ""
+    state: str = ""
+    district: str = ""
+    city: str = ""
+
+    # Analysis Metadata
+    clip_duration_seconds: int = 0
+    analysis_mode: str = "standard"
+
+    # 5 CORE SOP TRIGGERS (1=Pass, 0=Fail, -1=N/A)
+    sop_access_control: int = -1
+    sop_safety_equipment: int = -1
+    sop_uniform_compliance: int = -1
+    sop_visitor_management: int = -1
+    sop_emergency_readiness: int = -1
+
+    # CRITICAL ALERTS (1=Issue, 0=Clear, -1=N/A)
+    unauthorized_zone_entry: int = -1
+    fire_smoke_detected: int = -1
+    emergency_exit_blocked: int = -1
+    crowd_density_critical: int = -1
+    physical_altercation: int = -1
+    credential_sharing: int = -1
+    attendance_mismatch: int = -1
+    server_room_entry: int = -1
+    lone_worker_hazard: int = -1
+    workplace_violence: int = -1
+
+    # HIGH ALERTS (1=Issue, 0=Clear, -1=N/A)
+    tailgating_entry: int = -1
+    fire_equipment_obstructed: int = -1
+    safety_glasses_missing: int = -1
+    fall_incident: int = -1
+    suspicious_concealment: int = -1
+    abandoned_object: int = -1
+    camera_offline: int = -1
+    early_departure: int = -1
+    lone_worker_extended: int = -1
+    visitor_without_escort: int = -1
+    property_removal: int = -1
+    contractor_ppe_missing: int = -1
+
+    # MEDIUM ALERTS (1=Issue, 0=Clear, -1=N/A)
+    trip_hazard_object: int = -1
+    smoking_non_designated: int = -1
+    id_badge_not_visible: int = -1
+    safety_signage_obstructed: int = -1
+    first_aid_inaccessible: int = -1
+    extended_break: int = -1
+    workstation_absence: int = -1
+    visitor_badge_missing: int = -1
+
+    # LOW ALERTS (1=Issue, 0=Clear, -1=N/A)
+    improper_waste_disposal: int = -1
+    uniform_non_compliance: int = -1
+
+    # SCORE-BASED KPIs (0.0-1.0 scale)
+    uniform_score: float = 0.0
+    safety_score: float = 0.0
+    cleanliness_score: float = 0.0
+    access_compliance_score: float = 0.0
+    overall_score: float = 0.0
+
+    # COUNTS
+    people_count: int = 0
+    employee_count: int = 0
+    visitor_count: int = 0
+    contractor_count: int = 0
+    unidentified_count: int = 0
+    media_analyzed: int = 0
+
+    # ZONE ANALYSIS
+    zone_id: str = ""
+    zone_name: str = ""
+    zone_type: str = ""
+    authorized_access_only: int = 0
+
+    # ZONE-SPECIFIC KPIs (1=Issue, 0=Clear, -1=N/A)
+    unauthorized_presence: int = -1
+    outside_schedule: int = -1
+    occupancy_mismatch: int = -1
+    after_hours_presence: int = -1
+    after_shift: int = -1
+    cross_role_violation: int = -1
+    cross_department: int = -1
+    no_badge: int = -1
+    unescorted: int = -1
+    overstay: int = -1
+    unauthorized_entry_attempt: int = -1
+    tailgating_incident: int = -1
+    door_anomaly: int = -1
+    ppe_violation: int = -1
+    missing_ppe: int = -1
+    safety_breach: int = -1
+    group_violation: int = -1
+    loitering: int = -1
+    crowd_violation: int = -1
+    proximity_violation: int = -1
+    repeated_access: int = -1
+    infrastructure_violation: int = -1
+    event_violation: int = -1
+    active_event_type: str = ""
+
+    # FACE RECOGNITION (Arrays)
+    faces_identity_id: List[str] = Field(default_factory=list)
+    faces_confidence: List[float] = Field(default_factory=list)
+    faces_location: List[str] = Field(default_factory=list)
+    faces_timestamp_offset: List[int] = Field(default_factory=list)
+
+    # STATUS & CLASSIFICATION
+    status: str = "safe"
+    utilization: str = "low"
+    event_triggers: List[str] = Field(default_factory=list)
+
+    # AI OUTPUTS
+    ai_summary: str = ""
+
+    # AGGREGATES
+    critical_issues_count: int = 0
+    high_issues_count: int = 0
+    medium_issues_count: int = 0
+    low_issues_count: int = 0
+    total_issues_count: int = 0
+    overall_compliance_pct: int = 0
+
+
+class OfficeComplianceAuditResponse(OfficeComplianceAudit):
+    """Response model with mandatory row_id."""
+    row_id: str  # Mandatory in response
