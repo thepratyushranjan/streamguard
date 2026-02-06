@@ -20,6 +20,7 @@ router = APIRouter(tags=["Vector"])
 async def trigger_vector_pipeline(
     events: Union[List[Dict[str, Any]], Dict[str, Any]]
 ):
+    logger.info(f"events: {events}")
     """Trigger Vector pipeline by receiving events directly in body."""
     if isinstance(events, dict):
         events = [events]

@@ -3,6 +3,7 @@ SOP Compliance Audit Service Module
 """
 from typing import Dict, Any, Optional, List
 from clickhouse_connect.driver import Client
+from services.trigger_merge_service import trigger_merge_service
 
 from db.schemas import (
     SOPComplianceAudit, AIResponse,
@@ -101,7 +102,6 @@ def save_ai_response_to_audit(ai_response: Dict[str, Any], client: Optional[Clie
         
         # Merge triggers to video_analytics_logs if save was successful
         if result.get("success") and audit.event_triggers:
-            from services.trigger_merge_service import trigger_merge_service
             merge_result = trigger_merge_service.merge_triggers(
                 event_timestamp=audit.event_timestamp,
                 device_id=audit.device_id,

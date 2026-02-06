@@ -1,5 +1,4 @@
 """Triage Service - Updates triage fields in video_analytics_logs."""
-import time
 from typing import Dict, Any, Optional
 from core.connection import get_clickhouse
 from utils.logger import get_logger
@@ -26,23 +25,24 @@ def update_triage(
         event_timestamp: Event timestamp for matching (WHERE clause)
         company_id: Company ID for matching (WHERE clause)
         triaged_by: User who triaged (optional)
-        triage_timestamp: Triage time, defaults to current if not provided
+        triage_timestamp: Triage time
         ai_insights: AI insights text (optional)
         triage_notes: Additional triage notes (optional)
     """
-    triage_ts = triage_timestamp if triage_timestamp is not None else int(time.time())
-    
-    updates = [f"triage_timestamp = {triage_ts}"]
-    
-    # DRY: Map field names to their values, iterate to build updates
-    optional_fields = {
+    # String fields that need escaping
+    string_fields = {
         "triaged_by": triaged_by,
         "ai_insights": ai_insights,
         "triage_notes": triage_notes,
     }
-    updates.extend(
-        f"{field} = '{_escape(value)}'" for field, value in optional_fields.items() if value is not None
-    )
+    
+    updates = [
+        f"{field} = '{_escape(value)}'" for field, value in string_fields.items() if value is not None
+    ]
+    
+    # Integer field (no escaping/quotes needed)
+    if triage_timestamp is not None:
+        updates.append(f"triage_timestamp = {triage_timestamp}")
     
     client = get_clickhouse(company_id)
     where = f"event_timestamp = {event_timestamp} AND company_id = '{_escape(company_id)}'"
