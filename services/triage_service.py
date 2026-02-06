@@ -30,11 +30,14 @@ def update_triage(
         triage_notes: Additional triage notes (optional)
     """
     # String fields that need escaping
+
     string_fields = {
         "triaged_by": triaged_by,
         "ai_insights": ai_insights,
         "triage_notes": triage_notes,
+        "triage_timestamp": triage_timestamp
     }
+    print(f"string_fields: {string_fields}")
     
     updates = [
         f"{field} = '{_escape(value)}'" for field, value in string_fields.items() if value is not None
