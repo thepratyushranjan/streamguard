@@ -1,22 +1,21 @@
-"""
-Validation Service Module
-"""
-import asyncio
-import threading
 from typing import Dict, Any, List, Optional
 import httpx
 
 from core.config import get_settings
 from utils.logger import get_logger
+from services.http_service_base import (
+    BaseHTTPService,
+    build_validation_payload,
+)
 
 logger = get_logger(__name__)
 
 
-class ValidationService:
+class ValidationService(BaseHTTPService):
     """
     Singleton service class for handling validation API requests.
     
-    Features:
+    Inherits from BaseHTTPService:
     - Connection pooling with configurable limits
     - Concurrency control via semaphore
     - Automatic retry with exponential backoff
@@ -25,24 +24,6 @@ class ValidationService:
     """
     
     _instance: Optional["ValidationService"] = None
-    _http_client: Optional[httpx.AsyncClient] = None
-    
-    # Configuration constants
-    MAX_CONCURRENT_VALIDATIONS = 5
-    MAX_CONNECTIONS = 100
-    MAX_KEEPALIVE_CONNECTIONS = 20
-    
-    # Timeout configuration (in seconds)
-    CONNECT_TIMEOUT = 10.0
-    READ_TIMEOUT = 120.0  # 2 min for slow APIs
-    WRITE_TIMEOUT = 30.0
-    POOL_TIMEOUT = 30.0
-    
-    # Retry configuration
-    DEFAULT_MAX_RETRIES = 3
-    
-    # Batch processing delay (in seconds)
-    BATCH_DELAY_SECONDS = 30
     
     def __new__(cls) -> "ValidationService":
         """Ensure singleton pattern."""
@@ -53,202 +34,38 @@ class ValidationService:
     
     def __init__(self) -> None:
         """Initialize the service (only once due to singleton)."""
-        if self._initialized:
+        if getattr(self, '_initialized', False):
             return
-        
+        super().__init__()
         self._settings = get_settings()
-        self._validation_semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_VALIDATIONS)
-        
-        # Queue-based batching
-        self._event_queue: List[Dict[str, Any]] = []
-        self._queue_lock = threading.Lock()
-        self._batch_timer: Optional[threading.Timer] = None
-        
         self._initialized = True
     
-    @property
-    def http_client(self) -> httpx.AsyncClient:
-        """Get or create the HTTP client with optimized pool settings."""
-        if self._http_client is None:
-            self._http_client = httpx.AsyncClient(
-                limits=httpx.Limits(
-                    max_connections=self.MAX_CONNECTIONS,
-                    max_keepalive_connections=self.MAX_KEEPALIVE_CONNECTIONS,
-                ),
-                timeout=httpx.Timeout(
-                    connect=self.CONNECT_TIMEOUT,
-                    read=self.READ_TIMEOUT,
-                    write=self.WRITE_TIMEOUT,
-                    pool=self.POOL_TIMEOUT,
-                )
-            )
-        return self._http_client
+    def _get_api_url(self) -> str:
+        """Return the validation API URL."""
+        return self._settings.validation_url
     
-    async def initialize(self) -> None:
-        """Initialize the HTTP client (call on app startup)."""
-        _ = self.http_client
-        logger.info("Validation service HTTP client initialized")
+    def _build_payload(self, item: Dict[str, Any]) -> Dict[str, Any]:
+        """Build validation payload from item."""
+        return build_validation_payload(item)
     
-    async def shutdown(self) -> None:
-        """Close HTTP client gracefully (call on app shutdown)."""
-        if self._http_client is not None:
-            await self._http_client.aclose()
-            self._http_client = None
-            logger.info("Validation service HTTP client closed")
-    
-    async def _trigger_validation(
-        self, 
-        validation_payload: Dict[str, Any], 
-        max_retries: int = DEFAULT_MAX_RETRIES
+    async def _process_response(
+        self,
+        response: httpx.Response,
+        payload: Dict[str, Any]
     ) -> None:
-        """
-        Execute async validation API call with retry logic.
-        Uses semaphore to limit concurrent requests.
-        
-        Args:
-            validation_payload: The payload to send to the validation API
-            max_retries: Maximum number of retry attempts
-        """
-        event_folder = validation_payload.get('event_folder', 'unknown')
-        
-        async with self._validation_semaphore:
-            for attempt in range(max_retries):
-                try:
-                    logger.debug(f"Validation URL: {self._settings.validation_url}")
-                    logger.debug(f"Validation Payload: {validation_payload}")
-                    
-                    response = await self.http_client.post(
-                        self._settings.validation_url,
-                        json=validation_payload,
-                        headers={"Content-Type": "application/json"}
-                    )
-                    response.raise_for_status()
-                    logger.info(f"Validation API success for: {event_folder}")
-                    return
-                    
-                except httpx.TimeoutException:
-                    logger.warning(f"Validation timeout (attempt {attempt + 1}/{max_retries}): {event_folder}")
-                except httpx.HTTPStatusError as e:
-                    logger.error(f"Validation HTTP error {e.response.status_code}: {event_folder}")
-                    logger.error(f"Response body: {e.response.text}")
-                    if e.response.status_code < 500:  # Client error - don't retry
-                        return
-                except Exception as e:
-                    logger.error(f"Validation failed (attempt {attempt + 1}/{max_retries}): {e}")
-                
-                # Exponential backoff before retry
-                if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt  # 1s, 2s, 4s
-                    await asyncio.sleep(wait_time)
-            
-            logger.error(f"Validation failed after {max_retries} retries: {event_folder}")
-    
-    @staticmethod
-    def _build_validation_payload(item: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Build the validation payload from transformed data item.
-        
-        Args:
-            item: A single item from transformed_data
-            
-        Returns:
-            Formatted validation payload
-        """
-        data = item.get("data", {})
-        evidence_path = data.get("evidence_path", "")
-        
-        return {
-            "event_folder": evidence_path,
-            "event_data": {
-                "type": item.get("type", ""),
-                "processed_at": item.get("processed_at", 0),
-                "meta": item.get("meta", {}),
-                "data": data
-            }
-        }
+        """Process validation API response."""
+        event_folder = payload.get('event_folder', 'unknown')
+        logger.debug(f"Validation URL: {self._settings.validation_url}")
+        logger.debug(f"Validation Payload: {payload}")
+        logger.info(f"Validation API success for: {event_folder}")
     
     def schedule_validation_tasks(self, transformed_data: List[Dict[str, Any]]) -> None:
-        """
-        Schedule async validation tasks for all events.
-        Uses asyncio to fire-and-forget without blocking.
-        
-        Args:
-            transformed_data: List of transformed event data items
-        """
-        for item in transformed_data:
-            validation_payload = self._build_validation_payload(item)
-            event_folder = validation_payload.get("event_folder", "unknown")
-            
-            # Fire-and-forget: schedule the async task
-            asyncio.create_task(self._trigger_validation(validation_payload))
-            logger.info(f"Validation task queued for: {event_folder}")
+        """Schedule async validation tasks (delegates to base class)."""
+        self.schedule_immediate_tasks(transformed_data)
     
     def queue_validation_tasks(self, transformed_data: List[Dict[str, Any]]) -> None:
-        """
-        Queue events for batch validation after a delay.
-        Events are collected and processed together after BATCH_DELAY_SECONDS.
-        
-        This is more efficient than creating individual timers for each request,
-        as it uses a single timer for all queued events.
-        
-        Args:
-            transformed_data: List of transformed event data items
-        """
-        with self._queue_lock:
-            # Add all events to the queue
-            self._event_queue.extend(transformed_data)
-            queue_size = len(self._event_queue)
-            
-            # Start timer if not already running
-            if self._batch_timer is None or not self._batch_timer.is_alive():
-                self._batch_timer = threading.Timer(
-                    self.BATCH_DELAY_SECONDS,
-                    self._process_queued_events
-                )
-                self._batch_timer.daemon = True
-                self._batch_timer.start()
-                logger.info(f"Started batch timer for {self.BATCH_DELAY_SECONDS}s with {queue_size} events")
-            else:
-                logger.debug(f"Added {len(transformed_data)} events to queue (total: {queue_size})")
-    
-    def _process_queued_events(self) -> None:
-        """
-        Process all queued events. Called by the batch timer.
-        This runs in a separate thread, so we need to create a new event loop.
-        """
-        with self._queue_lock:
-            if not self._event_queue:
-                logger.debug("No events in queue to process")
-                return
-            
-            # Take all events from queue
-            events_to_process = self._event_queue.copy()
-            self._event_queue.clear()
-            self._batch_timer = None
-        
-        logger.info(f"Processing batch of {len(events_to_process)} validation events")
-        
-        # Create a new event loop for this thread and run validations
-        # This avoids "Event loop is closed" errors since timer runs in a separate thread
-        try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                loop.run_until_complete(self._run_batch_validations(events_to_process))
-            finally:
-                loop.close()
-        except Exception as e:
-            logger.error(f"Error processing validation batch: {e}")
-    
-    async def _run_batch_validations(self, events: List[Dict[str, Any]]) -> None:
-        """Run batch validations asynchronously."""
-        tasks = []
-        for item in events:
-            validation_payload = self._build_validation_payload(item)
-            tasks.append(self._trigger_validation(validation_payload))
-        
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+        """Queue events for batch validation (delegates to base class)."""
+        self.queue_tasks(transformed_data)
 
 
 # Module-level singleton instance for easy import

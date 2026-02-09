@@ -43,7 +43,7 @@ class EventData(BaseModel):
     status: Optional[str] = "safe" 
     triaged_by: Optional[str] = ""
     triage_notes: Optional[str] = ""
-    triage_timestamp: Optional[float] = 0.0
+    triage_timestamp: Optional[int] = 0
     ai_insights: Optional[str] = ""
     evidence_path: Optional[str] = ""
 

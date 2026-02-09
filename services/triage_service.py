@@ -1,4 +1,5 @@
 """Triage Service - Updates triage fields in video_analytics_logs."""
+import time
 from typing import Dict, Any, Optional
 from core.connection import get_clickhouse
 from utils.logger import get_logger
@@ -25,25 +26,27 @@ def update_triage(
         event_timestamp: Event timestamp for matching (WHERE clause)
         company_id: Company ID for matching (WHERE clause)
         triaged_by: User who triaged (optional)
-        triage_timestamp: Triage time
+        triage_timestamp: Triage time (auto-set when triaged_by is provided)
         ai_insights: AI insights text (optional)
         triage_notes: Additional triage notes (optional)
     """
-    # String fields that need escaping
+    # Auto-set triage_timestamp when triaged_by is provided
+    if triaged_by is not None and triage_timestamp is None:
+        triage_timestamp = int(time.time())
 
+    # String fields that need escaping
     string_fields = {
         "triaged_by": triaged_by,
         "ai_insights": ai_insights,
         "triage_notes": triage_notes,
-        "triage_timestamp": triage_timestamp
     }
-    print(f"string_fields: {string_fields}")
+    logger.info(f"string_fields: {string_fields}, triage_timestamp: {triage_timestamp}")
     
     updates = [
         f"{field} = '{_escape(value)}'" for field, value in string_fields.items() if value is not None
     ]
     
-    # Integer field (no escaping/quotes needed)
+    # Handle integer field separately (no escaping/quoting needed)
     if triage_timestamp is not None:
         updates.append(f"triage_timestamp = {triage_timestamp}")
     
