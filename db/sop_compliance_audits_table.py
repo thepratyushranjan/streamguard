@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS sop_compliance_audits (
     district LowCardinality(String),
     city LowCardinality(String),
 
+    -- Evidence path referencing source media
+    evidence_path String DEFAULT '',
+
     -- 5 CORE SOP TRIGGERS (Primary Dashboard Metrics)
     -- (Values: 1=Pass/Yes, 0=Fail/No, -1=N/A)
     sop_manned_air          Int8 DEFAULT -1,    -- Air station has attendant

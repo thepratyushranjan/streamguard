@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS office_compliance_audits (
     district LowCardinality(String),
     city LowCardinality(String),
 
+    -- Evidence path referencing source media
+    evidence_path String DEFAULT '',
+
     -- Analysis Metadata
     clip_duration_seconds UInt16 DEFAULT 0,
     analysis_mode LowCardinality(String) DEFAULT 'standard',

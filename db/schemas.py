@@ -135,7 +135,8 @@ class CameraEventRequest(BaseModel):
 # Field name constants
 METADATA_FIELDS = ['company_id', 'device_id', 'cam_id', 'cam_name', 'site_name', 
                    'site_id', 'event_timestamp', 'latitude', 'longitude', 
-                   'country', 'state', 'district', 'city']
+                   'country', 'state', 'district', 'city', 'evidence_path']
+
 SOP_FIELDS = ['sop_manned_air', 'sop_greeting', 'sop_uniform', 'sop_unauthorized', 'sop_cleanliness']
 SAFETY_FIELDS = ['du_cover_open', 'manhole_open', 'fuel_plastic_bottle', 'foreign_objects',
                  'smoking_detected', 'fire_detected', 'fight_detected', 'mob_gathering', 'unauthorized_area']
@@ -149,7 +150,7 @@ AGGREGATE_FIELDS = ['items_needing_attention', 'safety_issues_count', 'complianc
 OFFICE_METADATA_FIELDS = [
     'company_id', 'device_id', 'cam_id', 'cam_name', 'site_name', 'site_id',
     'event_timestamp', 'latitude', 'longitude', 'country', 'state', 'district', 'city',
-    'clip_duration_seconds', 'analysis_mode'
+    'clip_duration_seconds', 'analysis_mode', 'evidence_path'
 ]
 OFFICE_SOP_FIELDS = [
     'sop_access_control', 'sop_safety_equipment', 'sop_uniform_compliance',
@@ -205,6 +206,7 @@ class AIResponseMetadata(DeviceIdentityMixin, GeoLocationMixin):
     event_timestamp: int = 0
     clip_duration_seconds: int = 0
     media_analyzed: int = 0
+    evidence_path: Optional[str] = ""
 
 
 class AIResponseSafety(BaseModel):
@@ -362,6 +364,7 @@ class SOPComplianceAudit(DeviceIdentityMixin, GeoLocationMixin):
     # METADATA
     row_id: Optional[str] = None
     event_timestamp: int = 0
+    evidence_path: str = ""
 
     # 5 CORE SOP TRIGGERS (1=Pass, 0=Fail, -1=N/A)
     sop_manned_air: int = -1
@@ -544,6 +547,7 @@ class OfficeAIResponseMetadata(DeviceIdentityMixin, GeoLocationMixin):
     clip_duration_seconds: int = 0
     media_analyzed: int = 0
     analysis_mode: str = "standard"
+    evidence_path: Optional[str] = ""
 
 
 class OfficeAIResponseCriticalAlerts(BaseModel):
@@ -737,6 +741,7 @@ class OfficeComplianceAudit(DeviceIdentityMixin, GeoLocationMixin):
     # METADATA
     row_id: Optional[str] = None
     event_timestamp: int = 0
+    evidence_path: str = ""
 
     # Analysis Metadata
     clip_duration_seconds: int = 0
