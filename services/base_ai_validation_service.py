@@ -28,7 +28,7 @@ class BaseAIValidationService(BaseHTTPService):
     # Fields to copy from original event metadata
     _META_FIELDS = (
         'company_id', 'device_id', 'cam_id', 'cam_name', 'site_name',
-        'site_id', 'latitude', 'longitude', 'country', 'state', 'district', 'city'
+        'site_id', 'latitude', 'longitude', 'country', 'state', 'district', 'city', 'evidence_path'
     )
     
     def __init__(self) -> None:
@@ -73,6 +73,10 @@ class BaseAIValidationService(BaseHTTPService):
         response_json = response.json()
         response_data = response_json.get('validation_result', response_json)
         original_meta = payload.get('event_data', {}).get('meta', {})
+
+        meta = response_data.setdefault('metadata', {})
+        if not meta.get('evidence_path'):
+            meta['evidence_path'] = event_folder
         
         saved = self._save_ai_response(response_data, event_folder, original_meta)
         status = "saved to audit" if saved else "API OK, audit save failed"
