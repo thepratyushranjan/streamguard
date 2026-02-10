@@ -21,12 +21,13 @@ class Settings(BaseSettings):
     event_prefix: str
     validation_base_url: str
 
-    # Retry Configuration (with sensible defaults)
-    retry_max_retries: int = 5
-    retry_base_backoff: int = 4
-    retry_max_backoff: int = 200
-    retry_jitter_min: float = 2.0
-    retry_jitter_max: float = 4.5
+    # Retry Configuration - MUST be set in .env (no defaults)
+    retry_max_retries: int
+    retry_base_backoff: int
+    retry_max_backoff: int
+    retry_jitter_min: float
+    retry_jitter_max: float
+    batch_delay_seconds: int
     
     @property
     def validation_url(self) -> str:

@@ -20,13 +20,14 @@ from db.video_analytics_logs_table import SCHEMAS as VIDEO_ANALYTICS_SCHEMAS
 from db.sop_compliance_audits_table import SCHEMAS as SOP_COMPLIANCE_SCHEMAS
 from db.system_health_table import SCHEMAS as SYSTEM_HEALTH_SCHEMAS
 from db.office_sop_compliance_audits_table import SCHEMAS as OFFICE_SOP_COMPLIANCE_SCHEMAS
+from db.attendance_records_table import SCHEMAS as ATTENDANCE_RECORDS_SCHEMAS
 from core.config import get_settings
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 # Combine all schemas
-ALL_SCHEMAS = VIDEO_ANALYTICS_SCHEMAS + SOP_COMPLIANCE_SCHEMAS + SYSTEM_HEALTH_SCHEMAS + OFFICE_SOP_COMPLIANCE_SCHEMAS
+ALL_SCHEMAS = VIDEO_ANALYTICS_SCHEMAS + SOP_COMPLIANCE_SCHEMAS + SYSTEM_HEALTH_SCHEMAS + OFFICE_SOP_COMPLIANCE_SCHEMAS + ATTENDANCE_RECORDS_SCHEMAS
 
 # Build schema registry (table_name -> schema_sql)
 SCHEMA_REGISTRY = {name: schema for name, schema, _ in ALL_SCHEMAS}

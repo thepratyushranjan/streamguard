@@ -2,6 +2,41 @@ from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Literal, Union
 from datetime import datetime, timezone
 
+
+# --- Reusable Mixins ---
+
+class GeoLocationMixin(BaseModel):
+    """Reusable geo-location fields shared across multiple schemas."""
+    latitude: float = 0.0
+    longitude: float = 0.0
+    country: str = ""
+    state: str = ""
+    district: str = ""
+    city: str = ""
+
+
+class DeviceIdentityMixin(BaseModel):
+    """Reusable device/camera identity fields shared across multiple schemas."""
+    company_id: str = ""
+    device_id: str = ""
+    cam_id: str = ""
+    cam_name: str = ""
+    site_name: str = ""
+    site_id: str = ""
+
+
+# --- Reusable Utility Functions ---
+
+def _lowercase_or_default(v, default: str = "") -> str:
+    """Shared logic for lowercase field validators."""
+    return v.lower() if isinstance(v, str) and v else default
+
+
+def copy_fields(source: BaseModel, fields: List[str], default=None) -> dict:
+    """Copy specified fields from a Pydantic model to a dict."""
+    return {f: getattr(source, f, default) for f in fields if hasattr(source, f)}
+
+
 class HealthResponse(BaseModel):
     status: str
     clickhouse: str
@@ -49,7 +84,7 @@ class EventData(BaseModel):
 
     @field_validator('status', mode='before')
     def lowercase_status(cls, v):
-        return v.lower() if isinstance(v, str) and v else "safe"
+        return _lowercase_or_default(v, "safe")
 
 class EventMeta(BaseModel):
     company_id: str  # Mandatory field (String)
@@ -76,7 +111,7 @@ class CameraEventRequest(BaseModel):
 
     @field_validator('type', mode='before')
     def lowercase_type(cls, v):
-        return v.lower() if isinstance(v, str) and v else "metric"
+        return _lowercase_or_default(v, "metric")
 
     @field_validator('processed_at', mode='before')
     def parse_processed_at(cls, v):
@@ -97,13 +132,7 @@ class CameraEventRequest(BaseModel):
 
 # --- SOP Compliance Audit Schemas ---
 
-# Utility function for score conversion (DRY: reusable across schemas)
-def score_to_uint8(value: Optional[float]) -> int:
-    """Convert 0-1 float score to 0-10 integer scale."""
-    return min(max(int((value or 0) * 10), 0), 10)
-
-
-# Field name constants for mapping (DRY: avoids repetition in to_audit and services)
+# Field name constants
 METADATA_FIELDS = ['company_id', 'device_id', 'cam_id', 'cam_name', 'site_name', 
                    'site_id', 'event_timestamp', 'latitude', 'longitude', 
                    'country', 'state', 'district', 'city']
@@ -116,22 +145,64 @@ BEHAVIORAL_INT_FIELDS = ['greeting_detected', 'show_zero_detected', 'customer_le
 COUNT_FIELDS = ['people_count', 'staff_count', 'customer_count', 'vehicle_count', 'active_pumps']
 AGGREGATE_FIELDS = ['items_needing_attention', 'safety_issues_count', 'compliance_issues_count']
 
+# OFFICE COMPLIANCE AUDIT SCHEMAS
+OFFICE_METADATA_FIELDS = [
+    'company_id', 'device_id', 'cam_id', 'cam_name', 'site_name', 'site_id',
+    'event_timestamp', 'latitude', 'longitude', 'country', 'state', 'district', 'city',
+    'clip_duration_seconds', 'analysis_mode'
+]
+OFFICE_SOP_FIELDS = [
+    'sop_access_control', 'sop_safety_equipment', 'sop_uniform_compliance',
+    'sop_visitor_management', 'sop_emergency_readiness'
+]
+OFFICE_CRITICAL_ALERT_FIELDS = [
+    'unauthorized_zone_entry', 'fire_smoke_detected', 'emergency_exit_blocked',
+    'crowd_density_critical', 'physical_altercation', 'credential_sharing',
+    'attendance_mismatch', 'server_room_entry', 'lone_worker_hazard', 'workplace_violence'
+]
+OFFICE_HIGH_ALERT_FIELDS = [
+    'tailgating_entry', 'fire_equipment_obstructed', 'safety_glasses_missing',
+    'fall_incident', 'suspicious_concealment', 'abandoned_object', 'camera_offline',
+    'early_departure', 'lone_worker_extended', 'visitor_without_escort',
+    'property_removal', 'contractor_ppe_missing'
+]
+OFFICE_MEDIUM_ALERT_FIELDS = [
+    'trip_hazard_object', 'smoking_non_designated', 'id_badge_not_visible',
+    'safety_signage_obstructed', 'first_aid_inaccessible', 'extended_break',
+    'workstation_absence', 'visitor_badge_missing'
+]
+OFFICE_LOW_ALERT_FIELDS = ['improper_waste_disposal', 'uniform_non_compliance']
+OFFICE_SCORE_FIELDS = [
+    'uniform_score', 'safety_score', 'cleanliness_score',
+    'access_compliance_score', 'overall_score'
+]
+OFFICE_COUNT_FIELDS = [
+    'people_count', 'employee_count', 'visitor_count',
+    'contractor_count', 'unidentified_count', 'media_analyzed'
+]
+OFFICE_ZONE_FIELDS = ['zone_id', 'zone_name', 'zone_type', 'authorized_access_only']
+OFFICE_ZONE_KPI_FIELDS = [
+    'unauthorized_presence', 'outside_schedule', 'occupancy_mismatch',
+    'after_hours_presence', 'after_shift', 'cross_role_violation', 'cross_department',
+    'no_badge', 'unescorted', 'overstay', 'unauthorized_entry_attempt',
+    'tailgating_incident', 'door_anomaly', 'ppe_violation', 'missing_ppe',
+    'safety_breach', 'group_violation', 'loitering', 'crowd_violation',
+    'proximity_violation', 'repeated_access', 'infrastructure_violation',
+    'event_violation', 'active_event_type'
+]
+OFFICE_AGGREGATE_FIELDS = [
+    'critical_issues_count', 'high_issues_count', 'medium_issues_count',
+    'low_issues_count', 'total_issues_count', 'overall_compliance_pct'
+]
 
-class AIResponseMetadata(BaseModel):
+# Utility function for score conversion (DRY: reusable across schemas)
+def score_to_uint8(value: Optional[float]) -> int:
+    """Convert 0-1 float score to 0-10 integer scale."""
+    return min(max(int((value or 0) * 10), 0), 10)
+
+class AIResponseMetadata(DeviceIdentityMixin, GeoLocationMixin):
     """AI Response metadata section."""
-    company_id: str = ""
-    device_id: str = ""
-    cam_id: str = ""
-    cam_name: str = ""
-    site_name: str = ""
-    site_id: str = ""
     event_timestamp: int = 0
-    latitude: float = 0.0
-    longitude: float = 0.0
-    country: str = ""
-    state: str = ""
-    district: str = ""
-    city: str = ""
     clip_duration_seconds: int = 0
     media_analyzed: int = 0
 
@@ -238,7 +309,7 @@ class AIResponse(BaseModel):
 
     def _copy_fields(self, source: BaseModel, fields: List[str]) -> dict:
         """Copy specified fields from source model to dict."""
-        return {field: getattr(source, field) for field in fields}
+        return copy_fields(source, fields)
 
     def _extract_vehicles(self) -> dict:
         """Extract vehicle data into separate arrays."""
@@ -286,25 +357,11 @@ class VehicleData(BaseModel):
     confidence: float = 0.0
 
 
-class SOPComplianceAudit(BaseModel):
+class SOPComplianceAudit(DeviceIdentityMixin, GeoLocationMixin):
     """SOP Compliance Audit model for database storage."""
     # METADATA
     row_id: Optional[str] = None
-    company_id: str = ""
-    device_id: str = ""
-    cam_id: str = ""
-    cam_name: str = ""
-    site_name: str = ""
-    site_id: str = ""
     event_timestamp: int = 0
-
-    # Geo-Location
-    latitude: float = 0.0
-    longitude: float = 0.0
-    country: str = ""
-    state: str = ""
-    district: str = ""
-    city: str = ""
 
     # 5 CORE SOP TRIGGERS (1=Pass, 0=Fail, -1=N/A)
     sop_manned_air: int = -1
@@ -480,73 +537,10 @@ class TriageUpdateRequest(BaseModel):
     triage_notes: Optional[str] = None
 
 
-# OFFICE COMPLIANCE AUDIT SCHEMAS
 
-OFFICE_METADATA_FIELDS = [
-    'company_id', 'device_id', 'cam_id', 'cam_name', 'site_name', 'site_id',
-    'event_timestamp', 'latitude', 'longitude', 'country', 'state', 'district', 'city',
-    'clip_duration_seconds', 'analysis_mode'
-]
-OFFICE_SOP_FIELDS = [
-    'sop_access_control', 'sop_safety_equipment', 'sop_uniform_compliance',
-    'sop_visitor_management', 'sop_emergency_readiness'
-]
-OFFICE_CRITICAL_ALERT_FIELDS = [
-    'unauthorized_zone_entry', 'fire_smoke_detected', 'emergency_exit_blocked',
-    'crowd_density_critical', 'physical_altercation', 'credential_sharing',
-    'attendance_mismatch', 'server_room_entry', 'lone_worker_hazard', 'workplace_violence'
-]
-OFFICE_HIGH_ALERT_FIELDS = [
-    'tailgating_entry', 'fire_equipment_obstructed', 'safety_glasses_missing',
-    'fall_incident', 'suspicious_concealment', 'abandoned_object', 'camera_offline',
-    'early_departure', 'lone_worker_extended', 'visitor_without_escort',
-    'property_removal', 'contractor_ppe_missing'
-]
-OFFICE_MEDIUM_ALERT_FIELDS = [
-    'trip_hazard_object', 'smoking_non_designated', 'id_badge_not_visible',
-    'safety_signage_obstructed', 'first_aid_inaccessible', 'extended_break',
-    'workstation_absence', 'visitor_badge_missing'
-]
-OFFICE_LOW_ALERT_FIELDS = ['improper_waste_disposal', 'uniform_non_compliance']
-OFFICE_SCORE_FIELDS = [
-    'uniform_score', 'safety_score', 'cleanliness_score',
-    'access_compliance_score', 'overall_score'
-]
-OFFICE_COUNT_FIELDS = [
-    'people_count', 'employee_count', 'visitor_count',
-    'contractor_count', 'unidentified_count', 'media_analyzed'
-]
-OFFICE_ZONE_FIELDS = ['zone_id', 'zone_name', 'zone_type', 'authorized_access_only']
-OFFICE_ZONE_KPI_FIELDS = [
-    'unauthorized_presence', 'outside_schedule', 'occupancy_mismatch',
-    'after_hours_presence', 'after_shift', 'cross_role_violation', 'cross_department',
-    'no_badge', 'unescorted', 'overstay', 'unauthorized_entry_attempt',
-    'tailgating_incident', 'door_anomaly', 'ppe_violation', 'missing_ppe',
-    'safety_breach', 'group_violation', 'loitering', 'crowd_violation',
-    'proximity_violation', 'repeated_access', 'infrastructure_violation',
-    'event_violation', 'active_event_type'
-]
-OFFICE_AGGREGATE_FIELDS = [
-    'critical_issues_count', 'high_issues_count', 'medium_issues_count',
-    'low_issues_count', 'total_issues_count', 'overall_compliance_pct'
-]
-
-
-class OfficeAIResponseMetadata(BaseModel):
+class OfficeAIResponseMetadata(DeviceIdentityMixin, GeoLocationMixin):
     """Office AI Response metadata section."""
-    company_id: str = ""
-    device_id: str = ""
-    cam_id: str = ""
-    cam_name: str = ""
-    site_name: str = ""
-    site_id: str = ""
     event_timestamp: int = 0
-    latitude: float = 0.0
-    longitude: float = 0.0
-    country: str = ""
-    state: str = ""
-    district: str = ""
-    city: str = ""
     clip_duration_seconds: int = 0
     media_analyzed: int = 0
     analysis_mode: str = "standard"
@@ -679,7 +673,7 @@ class OfficeAIResponse(BaseModel):
 
     def _copy_fields(self, source: BaseModel, fields: List[str]) -> dict:
         """Copy specified fields from source model to dict."""
-        return {field: getattr(source, field, None) for field in fields if hasattr(source, field)}
+        return copy_fields(source, fields)
 
     def _extract_faces(self) -> dict:
         """Extract face data into separate arrays."""
@@ -738,25 +732,11 @@ class OfficeAIResponse(BaseModel):
         return OfficeComplianceAudit(**audit_data)
 
 
-class OfficeComplianceAudit(BaseModel):
+class OfficeComplianceAudit(DeviceIdentityMixin, GeoLocationMixin):
     """Office Compliance Audit model for database storage."""
     # METADATA
     row_id: Optional[str] = None
-    company_id: str = ""
-    device_id: str = ""
-    cam_id: str = ""
-    cam_name: str = ""
-    site_name: str = ""
-    site_id: str = ""
     event_timestamp: int = 0
-
-    # Geo-Location
-    latitude: float = 0.0
-    longitude: float = 0.0
-    country: str = ""
-    state: str = ""
-    district: str = ""
-    city: str = ""
 
     # Analysis Metadata
     clip_duration_seconds: int = 0
@@ -882,3 +862,65 @@ class OfficeComplianceAudit(BaseModel):
 class OfficeComplianceAuditResponse(OfficeComplianceAudit):
     """Response model with mandatory row_id."""
     row_id: str  # Mandatory in response
+
+
+# --- Attendance Records Schemas ---
+
+ATTENDANCE_DATA_FIELDS = ['event_type', 'person_name', 'person_id', 'zone',
+                          'direction', 'confidence', 'track_id', 'description', 'recorded_at']
+
+
+class AttendanceData(BaseModel):
+    """Attendance event data section."""
+    event_type: str
+    person_name: str
+    person_id: int
+    zone: str = ""
+    direction: str = "auto"
+    confidence: float = 0.0
+    track_id: int = 0
+    description: str = ""
+    recorded_at: int
+
+    @field_validator('event_type', mode='before')
+    def lowercase_event_type(cls, v):
+        return v.lower() if isinstance(v, str) and v else v
+
+
+class AttendanceRequest(BaseModel):
+    """Request schema for attendance POST endpoint."""
+    type: Literal['attendance', 'ATTENDANCE'] = "attendance"
+    meta: EventMeta
+    data: AttendanceData
+
+    @field_validator('type', mode='before')
+    def lowercase_type(cls, v):
+        return _lowercase_or_default(v, "attendance")
+
+
+class AttendanceRecord(DeviceIdentityMixin, GeoLocationMixin):
+    """Flat attendance record model for database storage."""
+    row_id: Optional[str] = None
+    zone_names: List[str] = Field(default_factory=list)
+    event_type: str = ""
+    person_name: str = ""
+    person_id: int = 0
+    zone: str = ""
+    direction: str = "auto"
+    confidence: float = 0.0
+    track_id: int = 0
+    description: str = ""
+    recorded_at: int = 0
+
+    @classmethod
+    def from_request(cls, req: AttendanceRequest) -> "AttendanceRecord":
+        """Flatten nested request payload into a DB-ready record."""
+        meta_fields = [f for f in METADATA_FIELDS if f != 'event_timestamp'] + ['zone_names']
+        data = {f: getattr(req.meta, f) for f in meta_fields}
+        data.update({f: getattr(req.data, f) for f in ATTENDANCE_DATA_FIELDS})
+        return cls(**data)
+
+class AttendanceRecordResponse(AttendanceRecord):
+    """Response model with mandatory row_id."""
+    row_id: str
+

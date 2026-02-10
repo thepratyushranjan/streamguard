@@ -220,8 +220,8 @@ class BaseHTTPService(ABC):
     TIMEOUT_CFG = DEFAULT_TIMEOUT_CONFIG
     RETRY_CFG = DEFAULT_RETRY_CONFIG
     
-    # Batch processing delay (in seconds)
-    BATCH_DELAY_SECONDS = 30
+    # Batch processing delay (in seconds) - loaded from .env via config
+    BATCH_DELAY_SECONDS = get_settings().batch_delay_seconds
     
     def __init__(self) -> None:
         """Initialize the service instance."""
