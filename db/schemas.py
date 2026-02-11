@@ -920,7 +920,7 @@ class AttendanceRecord(DeviceIdentityMixin, GeoLocationMixin):
     @classmethod
     def from_request(cls, req: AttendanceRequest) -> "AttendanceRecord":
         """Flatten nested request payload into a DB-ready record."""
-        meta_fields = [f for f in METADATA_FIELDS if f != 'event_timestamp'] + ['zone_names']
+        meta_fields = [f for f in METADATA_FIELDS if f not in ('event_timestamp', 'evidence_path')] + ['zone_names']
         data = {f: getattr(req.meta, f) for f in meta_fields}
         data.update({f: getattr(req.data, f) for f in ATTENDANCE_DATA_FIELDS})
         return cls(**data)
