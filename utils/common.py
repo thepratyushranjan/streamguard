@@ -6,6 +6,7 @@ from typing import Callable, Any, Optional
 from fastapi import HTTPException
 
 from utils.logger import get_logger
+import json
 
 
 def create_logger(name: str):
@@ -72,3 +73,15 @@ def handle_route_exceptions(
         return sync_wrapper
     
     return decorator
+
+
+def safe_json_load(data):
+    try:
+        parsed = json.loads(data)
+        if isinstance(parsed, str):
+            parsed = json.loads(parsed)
+            
+        return parsed
+
+    except (json.JSONDecodeError, TypeError):
+        return data  

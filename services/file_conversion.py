@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import zipfile
@@ -7,7 +8,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
 from PIL import Image
+from utils.common import safe_json_load
 from utils.logger import get_logger
+import requests
+
 
 logger = get_logger(__name__)
 
@@ -123,7 +127,7 @@ def upload_single_file(bucket, blob_name, file_path):
         return False
 
 
-def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str):
+def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str,json_data=None):
     """
     1. Unzip
     2. Convert (Images -> WebP, Video -> WebM)
@@ -179,7 +183,28 @@ def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str)
                 future.result()
 
         logger.info("Upload sequence completed.")
-
+        try:
+            if json_data:        
+                headers = {
+                    "Content-Type": "application/json"
+                }
+                url = "https://roboiingest.invincibleocean.com/vector" 
+                try:
+                    payload = safe_json_load(json_data)
+                    logger.info("Successfully parsed JSON payload")
+                    logger.info(f"Payload: {payload}")
+                except json.JSONDecodeError as json_err:
+                    logger.error(f"JSON parsing failed: {json_err}")
+                    logger.error(f"Full json_data: {json_data}")
+                    raise
+                
+                logger.info("Sending POST request to vector endpoint")
+                response = requests.post(url, json=payload, headers=headers)
+                logger.info(f"API response status: {response.status_code}")
+                logger.info(f"API response: {response.text}")
+        except Exception as e:
+            logger.error(f"Exception during API hit: {str(e)}")
+            logger.error(f"json_data content: {json_data}")
     except Exception as e:
         logger.error(f"Critical Error in workflow: {e}")
 
