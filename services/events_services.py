@@ -101,6 +101,7 @@ def process_camera_events(events: List[CameraEventRequest]) -> Dict[str, Any]:
                 int(payload.triage_timestamp or 0),
                 payload.ai_insights or "",
                 payload.evidence_path or "",
+                payload.event_accuracy_score if payload.event_accuracy_score is not None else 0.0,
                 display_labels,
                 rec_identities,
                 rec_confidences,

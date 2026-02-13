@@ -2,7 +2,7 @@
 VECTOR_REQUEST_TIMEOUT = 5
 HTTP_OK = 200
 
-# ClickHouse Constants
+# Video Ingest Constants
 CH_COLUMNS = [
     'company_id', 'device_id',
     'cam_id', 'cam_name', 'site_name', 'site_id', 'zone_names',
@@ -16,6 +16,23 @@ CH_COLUMNS = [
     'lpr.rc_no', 'lpr.track_id', 'lpr.confidence', 'lpr.identity_id',
     'event_triggers',
     'triaged_by', 'triage_notes', 'triage_timestamp', 'ai_insights', 'evidence_path',
+    'event_accuracy_score',
     'display_label',
     'recognition.identity', 'recognition.confidence', 'recognition.identity_id'
 ]
+
+
+# Attendance Constants
+ATTENDANCE_COLUMNS = [
+    # Metadata
+    'company_id', 'device_id', 'cam_id', 'cam_name',
+    'site_name', 'site_id', 'zone_names',
+    # Geo-Location
+    'latitude', 'longitude', 'country', 'state', 'district', 'city',
+    # Attendance Data
+    'event_type', 'person_name', 'person_id', 'zone',
+    'direction', 'confidence', 'track_id', 'description', 'recorded_at',
+    'total_work_hours', 'workstation_absence',
+]
+
+

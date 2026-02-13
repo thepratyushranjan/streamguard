@@ -73,7 +73,8 @@ def extract_enriched_data(event: Dict[str, Any]) -> Dict[str, Any]:
         "triage_notes": source.get("triage_notes", ""),
         "triage_timestamp": source.get("triage_timestamp", 0.0),
         "ai_insights": source.get("ai_insights", ""),
-        "evidence_path": source.get("evidence_path", "")
+        "evidence_path": source.get("evidence_path", ""),
+        "event_accuracy_score": source.get("event_accuracy_score", None)
     })
     
     return enriched
@@ -196,6 +197,7 @@ class CameraDataTransformer:
                         "triage_timestamp": event.get("triage_timestamp", 0.0),
                         "ai_insights": event.get("ai_insights", ""),
                         "evidence_path": event.get("evidence_path", ""),
+                        "event_accuracy_score": event.get("event_accuracy_score", None),
                         "detections": [
                             self._transform_detection(det)
                             for det in event.get("detections_data", [])

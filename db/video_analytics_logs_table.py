@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS video_analytics_logs (
     triage_timestamp UInt32,
     ai_insights String,
     evidence_path String,
+    event_accuracy_score Float32 DEFAULT 0,
 
     -- Recognition Data
     display_label Array(LowCardinality(String)) DEFAULT [],

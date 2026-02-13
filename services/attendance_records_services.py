@@ -10,20 +10,9 @@ from clickhouse_connect.driver import Client
 
 from db.schemas import AttendanceRecord, AttendanceRequest, METADATA_FIELDS, ATTENDANCE_DATA_FIELDS
 from utils.logger import get_logger
+from utils.constant import ATTENDANCE_COLUMNS
 
 logger = get_logger(__name__)
-
-# ClickHouse column names matching attendance_logs table (order matters)
-ATTENDANCE_COLUMNS: List[str] = [
-    # Metadata
-    'company_id', 'device_id', 'cam_id', 'cam_name',
-    'site_name', 'site_id', 'zone_names',
-    # Geo-Location
-    'latitude', 'longitude', 'country', 'state', 'district', 'city',
-    # Attendance Data
-    'event_type', 'person_name', 'person_id', 'zone',
-    'direction', 'confidence', 'track_id', 'description', 'recorded_at',
-]
 
 
 def _build_attendance_row(record: AttendanceRecord) -> List[Any]:
@@ -62,6 +51,8 @@ def _build_attendance_row(record: AttendanceRecord) -> List[Any]:
         record.track_id,
         record.description,
         record.recorded_at,
+        record.total_work_hours,
+        record.workstation_absence,
     ]
 
 

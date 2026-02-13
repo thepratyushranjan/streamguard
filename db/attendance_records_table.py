@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS attendance_logs(
     track_id UInt32 DEFAULT 0,
     description String DEFAULT '',
     recorded_at UInt32,
+    total_work_hours String DEFAULT '',
+    workstation_absence String DEFAULT '',
 
     -- Secondary Indexes (Skip Indexes)
     INDEX idx_person_name person_name TYPE bloom_filter(0.01) GRANULARITY 4,

@@ -1,6 +1,3 @@
-"""
-Common utilities for API routes - DRY principle implementation.
-"""
 from functools import wraps
 from typing import Callable, Any, Optional
 from fastapi import HTTPException

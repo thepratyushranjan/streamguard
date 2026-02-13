@@ -81,6 +81,7 @@ class EventData(BaseModel):
     triage_timestamp: Optional[int] = 0
     ai_insights: Optional[str] = ""
     evidence_path: Optional[str] = ""
+    event_accuracy_score: Optional[float] = None
 
     @field_validator('status', mode='before')
     def lowercase_status(cls, v):
@@ -872,7 +873,8 @@ class OfficeComplianceAuditResponse(OfficeComplianceAudit):
 # --- Attendance Records Schemas ---
 
 ATTENDANCE_DATA_FIELDS = ['event_type', 'person_name', 'person_id', 'zone',
-                          'direction', 'confidence', 'track_id', 'description', 'recorded_at']
+                          'direction', 'confidence', 'track_id', 'description', 'recorded_at',
+                          'total_work_hours', 'workstation_absence']
 
 
 class AttendanceData(BaseModel):
@@ -886,6 +888,8 @@ class AttendanceData(BaseModel):
     track_id: int = 0
     description: str = ""
     recorded_at: int
+    total_work_hours: str = ""
+    workstation_absence: str = ""
 
     @field_validator('event_type', mode='before')
     def lowercase_event_type(cls, v):
@@ -916,6 +920,8 @@ class AttendanceRecord(DeviceIdentityMixin, GeoLocationMixin):
     track_id: int = 0
     description: str = ""
     recorded_at: int = 0
+    total_work_hours: str = ""
+    workstation_absence: str = ""
 
     @classmethod
     def from_request(cls, req: AttendanceRequest) -> "AttendanceRecord":
