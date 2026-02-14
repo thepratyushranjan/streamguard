@@ -188,7 +188,12 @@ def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str,
                 headers = {
                     "Content-Type": "application/json"
                 }
-                url = "https://roboiingest.invincibleocean.com/vector" 
+                url = "https://roboiingest.invincibleocean.com/vector"
+                if bucket_name == '697cbadab584b2e17eb86d24':
+                    url = "https://roboiingest.invincibleocean.com/vector-office"
+                
+                logger.info(f"Calling for AI info endpoint: {url}")
+
                 try:
                     payload = safe_json_load(json_data)
                     logger.info("Successfully parsed JSON payload")
