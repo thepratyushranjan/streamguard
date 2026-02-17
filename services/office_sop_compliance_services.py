@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional, List
 from clickhouse_connect.driver import Client
 
 from db.schemas import (
-    OfficeComplianceAudit, OfficeAIResponse,
+    OfficeComplianceAudit, OfficeAIResponse, CameraEventRequest,
     OFFICE_METADATA_FIELDS, OFFICE_SOP_FIELDS,
     OFFICE_CRITICAL_ALERT_FIELDS, OFFICE_HIGH_ALERT_FIELDS,
     OFFICE_MEDIUM_ALERT_FIELDS, OFFICE_LOW_ALERT_FIELDS,
@@ -14,6 +14,10 @@ from db.schemas import (
 )
 from core.connection import get_clickhouse
 from utils.logger import get_logger
+from services.trigger_merge_service import trigger_merge_service
+from services.vector_services import transformer, extract_enriched_data
+from services.validation_service import validation_service
+from services.events_services import process_camera_events
 
 logger = get_logger(__name__)
 
@@ -85,7 +89,7 @@ def _build_audit_row(audit: OfficeComplianceAudit) -> List[Any]:
     return row
 
 
-def save_office_ai_response_to_audit(ai_response: Dict[str, Any], client: Optional[Client] = None) -> Dict[str, Any]:
+def save_office_ai_response_to_audit(ai_response: Dict[str, Any], events: List[Dict[str, Any]], client: Optional[Client] = None) -> Dict[str, Any]:
     """
     Parse Office AI response and save to office_compliance_audits table.
     
@@ -99,6 +103,25 @@ def save_office_ai_response_to_audit(ai_response: Dict[str, Any], client: Option
     try:
         parsed = OfficeAIResponse.model_validate(ai_response)
         audit = parsed.to_audit()
+        if audit.event_triggers !=[]:
+            # Update event_triggers from audit into events JSON
+            [event["data"].__setitem__("triggers", audit.event_triggers) for event in events if "data" in event]
+            logger.debug(f"Enriched events with triggers: {events}")
+            # Process enriched events through vector pipeline
+            try:
+                results_dict = [
+                    {"event_index": i + 1, **extract_enriched_data(event)}
+                    for i, event in enumerate(events)
+                ]
+                transformed_data = transformer.transform({"results": results_dict})
+                event_type = transformed_data[0].get("type", "").lower() if transformed_data else ""
+                if event_type == "event":
+                    validation_service.queue_validation_tasks(transformed_data)
+                camera_events = [CameraEventRequest(**item) for item in transformed_data]
+                process_camera_events(camera_events)
+            except Exception as e:
+                logger.error(f"Vector pipeline processing failed for enriched events when get input through ai-info : {e}", exc_info=True)
+        
         company_id = (audit.company_id or "").strip()
         if not company_id:
             logger.error(f"Missing company_id in Office AI response: {ai_response.get('metadata', {})}")
@@ -110,7 +133,6 @@ def save_office_ai_response_to_audit(ai_response: Dict[str, Any], client: Option
         
         # Merge triggers to video_analytics_logs if save was successful
         if result.get("success") and audit.event_triggers:
-            from services.trigger_merge_service import trigger_merge_service
             merge_result = trigger_merge_service.merge_triggers(
                 event_timestamp=audit.event_timestamp,
                 device_id=audit.device_id,
