@@ -54,6 +54,14 @@ def get_or_create_bucket(storage_client, bucket_name):
         logging.error(f"Error checking bucket '{bucket_name}': {e}")
         raise
 
+def check_folder(bucket, folder_name: str) -> bool:
+    blobs = bucket.list_blobs(prefix=folder_name, max_results=1)
+
+    for _ in blobs:
+        logger.info("Folder already exists")
+        return True
+
+    return False
 def convert_image_to_webp(file_path: str) -> str:
     """Converts .jpeg, .jpg, .avf to .webp and returns new path."""
     try:
@@ -127,7 +135,7 @@ def upload_single_file(bucket, blob_name, file_path):
         return False
 
 
-def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str,json_data=None):
+def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str,json_data=None,tmp_filename = None):
     """
     1. Unzip
     2. Convert (Images -> WebP, Video -> WebM)
@@ -149,6 +157,10 @@ def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str,
 
 
     try:
+        exist = check_folder(bucket, tmp_filename)
+        if exist:
+            logger.info("Folder exists. Skipping.")
+            return
         with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
             zip_ref.extractall(extract_path)
         
