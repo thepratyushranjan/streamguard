@@ -50,9 +50,10 @@ async def upload_folder(
     zip_base_name = os.path.splitext(file.filename)[0]
     extract_dir = os.path.join(UPLOADS_DIR, zip_base_name)
     os.makedirs(extract_dir, exist_ok=True)
+    tmp_filename =f"events/{file.filename.split(".zip")[0]}" 
 
-    background_tasks.add_task(process_and_upload_workflow, zip_path, extract_dir, file_name,json_data)
-    # process_and_upload_workflow(zip_path, extract_dir, file_name,json_data)
+    background_tasks.add_task(process_and_upload_workflow, zip_path, extract_dir, file_name,json_data,tmp_filename)
+    # process_and_upload_workflow(zip_path, extract_dir, file_name,json_data,tmp_filename)
 
     return {
         "status": "success",
