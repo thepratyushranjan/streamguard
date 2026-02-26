@@ -202,6 +202,23 @@ def score_to_uint8(value: Optional[float]) -> int:
     """Convert 0-1 float score to 0-10 integer scale."""
     return min(max(int((value or 0) * 10), 0), 10)
 
+
+class CoerceIntMixin(BaseModel):
+    """Mixin that coerces float values to int (via round) for all int fields.
+    
+    Use this as a parent class for any schema where the AI might return
+    float values (e.g. 1.0, 0.0) for fields defined as int.
+    """
+    @field_validator("*", mode="before")
+    @classmethod
+    def coerce_float_to_int(cls, v, info):
+        # Only round floats for fields that are annotated as int
+        if isinstance(v, float) and info.field_name in cls.model_fields:
+            field = cls.model_fields[info.field_name]
+            if field.annotation is int:
+                return round(v)
+        return v
+
 class AIResponseMetadata(DeviceIdentityMixin, GeoLocationMixin):
     """AI Response metadata section."""
     event_timestamp: int = 0
@@ -210,7 +227,7 @@ class AIResponseMetadata(DeviceIdentityMixin, GeoLocationMixin):
     evidence_path: Optional[str] = ""
 
 
-class AIResponseSafety(BaseModel):
+class AIResponseSafety(CoerceIntMixin):
     """AI Response safety KPIs."""
     du_cover_open: int = -1
     manhole_open: int = -1
@@ -223,7 +240,7 @@ class AIResponseSafety(BaseModel):
     unauthorized_area: int = -1
 
 
-class AIResponseOperations(BaseModel):
+class AIResponseOperations(CoerceIntMixin):
     """AI Response operations KPIs."""
     fsm_present: int = -1
     manned_air_filling: int = -1
@@ -247,7 +264,7 @@ class AIResponseScores(BaseModel):
         return {field: score_to_uint8(getattr(self, field)) for field in SCORE_FIELDS}
 
 
-class AIResponseBehavioral(BaseModel):
+class AIResponseBehavioral(CoerceIntMixin):
     """AI Response behavioral KPIs."""
     customer_present: bool = False
     greeting_detected: int = -1
@@ -256,7 +273,7 @@ class AIResponseBehavioral(BaseModel):
     mobile_phone_use: int = -1
 
 
-class AIResponseCounts(BaseModel):
+class AIResponseCounts(CoerceIntMixin):
     """AI Response counts."""
     people_count: int = 0
     staff_count: int = 0
@@ -278,7 +295,7 @@ class AIResponseClassification(BaseModel):
     utilization: str = ""
 
 
-class AIResponseAggregates(BaseModel):
+class AIResponseAggregates(CoerceIntMixin):
     """AI Response aggregates."""
     items_needing_attention: int = 0
     overall_compliance_pct: int = 0
@@ -286,7 +303,7 @@ class AIResponseAggregates(BaseModel):
     compliance_issues_count: int = 0
 
 
-class AIResponseSOP(BaseModel):
+class AIResponseSOP(CoerceIntMixin):
     """AI Response SOP core triggers."""
     sop_manned_air: int = -1
     sop_greeting: int = -1
@@ -551,7 +568,7 @@ class OfficeAIResponseMetadata(DeviceIdentityMixin, GeoLocationMixin):
     evidence_path: Optional[str] = ""
 
 
-class OfficeAIResponseCriticalAlerts(BaseModel):
+class OfficeAIResponseCriticalAlerts(CoerceIntMixin):
     """Office AI Response critical alerts (1=Issue, 0=Clear, -1=N/A)."""
     unauthorized_zone_entry: int = -1
     fire_smoke_detected: int = -1
@@ -565,7 +582,7 @@ class OfficeAIResponseCriticalAlerts(BaseModel):
     workplace_violence: int = -1
 
 
-class OfficeAIResponseHighAlerts(BaseModel):
+class OfficeAIResponseHighAlerts(CoerceIntMixin):
     """Office AI Response high alerts (1=Issue, 0=Clear, -1=N/A)."""
     tailgating_entry: int = -1
     fire_equipment_obstructed: int = -1
@@ -581,7 +598,7 @@ class OfficeAIResponseHighAlerts(BaseModel):
     contractor_ppe_missing: int = -1
 
 
-class OfficeAIResponseMediumAlerts(BaseModel):
+class OfficeAIResponseMediumAlerts(CoerceIntMixin):
     """Office AI Response medium alerts (1=Issue, 0=Clear, -1=N/A)."""
     trip_hazard_object: int = -1
     smoking_non_designated: int = -1
@@ -593,7 +610,7 @@ class OfficeAIResponseMediumAlerts(BaseModel):
     visitor_badge_missing: int = -1
 
 
-class OfficeAIResponseLowAlerts(BaseModel):
+class OfficeAIResponseLowAlerts(CoerceIntMixin):
     """Office AI Response low alerts (1=Issue, 0=Clear, -1=N/A)."""
     improper_waste_disposal: int = -1
     uniform_non_compliance: int = -1
@@ -608,7 +625,7 @@ class OfficeAIResponseScores(BaseModel):
     overall_compliance_score: Optional[float] = 0.0
 
 
-class OfficeAIResponseCounts(BaseModel):
+class OfficeAIResponseCounts(CoerceIntMixin):
     """Office AI Response counts."""
     people_count: int = 0
     employee_count: int = 0
@@ -640,7 +657,7 @@ class OfficeAIResponseClassification(BaseModel):
     utilization: str = "low"
 
 
-class OfficeAIResponseAggregates(BaseModel):
+class OfficeAIResponseAggregates(CoerceIntMixin):
     """Office AI Response aggregates."""
     critical_issues_count: int = 0
     high_issues_count: int = 0
@@ -650,7 +667,7 @@ class OfficeAIResponseAggregates(BaseModel):
     overall_compliance_pct: int = 0
 
 
-class OfficeAIResponseSOP(BaseModel):
+class OfficeAIResponseSOP(CoerceIntMixin):
     """Office AI Response SOP core triggers (1=Pass, 0=Fail, -1=N/A)."""
     sop_access_control: int = -1
     sop_safety_equipment: int = -1
@@ -888,8 +905,8 @@ class AttendanceData(BaseModel):
     track_id: int = 0
     description: str = ""
     recorded_at: int
-    total_work_hours: str = ""
-    workstation_absence: str = ""
+    total_work_hours: int = 0
+    workstation_absence: int = 0
 
     @field_validator('event_type', mode='before')
     def lowercase_event_type(cls, v):
@@ -920,8 +937,8 @@ class AttendanceRecord(DeviceIdentityMixin, GeoLocationMixin):
     track_id: int = 0
     description: str = ""
     recorded_at: int = 0
-    total_work_hours: str = ""
-    workstation_absence: str = ""
+    total_work_hours: int = 0
+    workstation_absence: int = 0
 
     @classmethod
     def from_request(cls, req: AttendanceRequest) -> "AttendanceRecord":

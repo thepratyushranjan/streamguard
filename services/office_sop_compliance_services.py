@@ -106,7 +106,7 @@ def save_office_ai_response_to_audit(ai_response: Dict[str, Any], events: List[D
         if audit.event_triggers !=[]:
             # Update event_triggers from audit into events JSON
             [event["data"].__setitem__("triggers", audit.event_triggers) for event in events if "data" in event]
-            logger.debug(f"Enriched events with triggers: {events}")
+            logger.debug(f"Enriching office events with triggers from AI response")
             # Process enriched events through vector pipeline
             try:
                 results_dict = [

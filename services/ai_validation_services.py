@@ -20,6 +20,27 @@ class AIValidationService(BaseAIValidationService):
     - Standard AI validation API endpoint
     - Standard SOP compliance audit storage
     """
+    META_KEYS = frozenset({
+        "ts", "cam_id", "cam_name", "zone_names", "site_name", "site_id",
+        "latitude", "longitude", "country", "state", "district", "city",
+        "company_id", "device_id"
+    })
+
+    DATA_DEFAULTS = {
+        "triggers": list, "video_count": lambda: 1, "image_count": lambda: 3,
+        "detections": list, "triaged_by": str, "triage_notes": str,
+        "triage_timestamp": int, "ai_insights": str,
+        "capture_triggered": lambda: True, "evidence_path": str,
+    }
+
+    def build_event(self, original_meta: dict[str, Any], **overrides: Any) -> dict[str, Any]:
+        """Build structured event from raw camera metadata."""
+        meta = {k: v for k, v in original_meta.items() if k in self.META_KEYS}
+        data = {k: v for k, v in original_meta.items() if k not in self.META_KEYS}
+        data.update({k: fn() for k, fn in self.DATA_DEFAULTS.items() if k not in data})
+        data.update(overrides)
+
+        return {"type": "event", "meta": meta, "data": data}
     
     _instance: Optional["AIValidationService"] = None
     
@@ -51,8 +72,8 @@ class AIValidationService(BaseAIValidationService):
         try:
             if original_meta:
                 self._merge_metadata(response_data, original_meta)
-            
-            result = save_ai_response_to_audit(response_data)
+            events = [self.build_event(original_meta, evidence_path=event_folder, status="warning")]
+            result = save_ai_response_to_audit(response_data, events)
             if not result.get("success"):
                 logger.warning(f"Failed to save AI response: {result.get('error')}")
             return result.get("success", False)

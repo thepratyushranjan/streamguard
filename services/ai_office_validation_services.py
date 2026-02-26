@@ -72,7 +72,7 @@ class AIOfficeValidationService(BaseAIValidationService):
         try:
             if original_meta:
                 self._merge_metadata(response_data, original_meta)
-            events = [self.build_event(original_meta, evidence_path=event_folder)]
+            events = [self.build_event(original_meta, evidence_path=event_folder, status="warning")]
             result = save_office_ai_response_to_audit(response_data, events)
             if not result.get("success"):
                 logger.warning(f"Failed to save Office AI response: {result.get('error')}")

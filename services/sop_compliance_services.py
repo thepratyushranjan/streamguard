@@ -4,9 +4,12 @@ SOP Compliance Audit Service Module
 from typing import Dict, Any, Optional, List
 from clickhouse_connect.driver import Client
 from services.trigger_merge_service import trigger_merge_service
+from services.vector_services import transformer, extract_enriched_data
+from services.validation_service import validation_service
+from services.events_services import process_camera_events
 
 from db.schemas import (
-    SOPComplianceAudit, AIResponse,
+    SOPComplianceAudit, AIResponse, CameraEventRequest,
     METADATA_FIELDS, SOP_FIELDS, SAFETY_FIELDS, OPERATIONS_FIELDS,
     SCORE_FIELDS, BEHAVIORAL_INT_FIELDS, COUNT_FIELDS, AGGREGATE_FIELDS
 )
@@ -76,13 +79,14 @@ def _build_audit_row(audit: SOPComplianceAudit) -> List[Any]:
     return row
 
 
-def save_ai_response_to_audit(ai_response: Dict[str, Any], client: Optional[Client] = None) -> Dict[str, Any]:
+def save_ai_response_to_audit(ai_response: Dict[str, Any], events: List[Dict[str, Any]], client: Optional[Client] = None) -> Dict[str, Any]:
     """
     Parse AI response and save to sop_compliance_audits table.
     Also merges AI-info triggers into matching video_analytics_logs record.
     
     Args:
         ai_response: The AI response dictionary
+        events: List of structured event dicts for vector pipeline enrichment
         client: Optional ClickHouse client (uses singleton if not provided)
     
     Returns:
@@ -91,6 +95,25 @@ def save_ai_response_to_audit(ai_response: Dict[str, Any], client: Optional[Clie
     try:
         parsed = AIResponse.model_validate(ai_response)
         audit = parsed.to_audit()
+        if audit.event_triggers != []:
+            logger.info("Enriching events with triggers from AI response")
+            # Update event_triggers from audit into events JSON
+            [event["data"].__setitem__("triggers", audit.event_triggers) for event in events if "data" in event]
+            # Process enriched events through vector pipeline
+            try:
+                results_dict = [
+                    {"event_index": i + 1, **extract_enriched_data(event)}
+                    for i, event in enumerate(events)
+                ]
+                transformed_data = transformer.transform({"results": results_dict})
+                event_type = transformed_data[0].get("type", "").lower() if transformed_data else ""
+                if event_type == "event":
+                    validation_service.queue_validation_tasks(transformed_data)
+                camera_events = [CameraEventRequest(**item) for item in transformed_data]
+                process_camera_events(camera_events)
+            except Exception as e:
+                logger.error(f"Vector pipeline processing failed for enriched events when get input through ai-info : {e}", exc_info=True)
+
         company_id = (audit.company_id or "").strip()
         if not company_id:
             logger.error(f"Missing company_id in AI response: {ai_response.get('metadata', {})}")
