@@ -55,6 +55,8 @@ class Detection(BaseModel):
     # Optional detection metadata
     model_id: int = 0
     track_id: int = 0
+    dwell_time: float = 0.0
+    filled: int = 0
     parent_track_id: int = 0
     # Optional LPR (License Plate Recognition) data
     lpr: Optional[dict] = Field(default_factory=dict)

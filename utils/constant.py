@@ -13,6 +13,7 @@ CH_COLUMNS = [
     'detections.class_id', 'detections.label', 'detections.confidence',
     'detections.bbox_left', 'detections.bbox_top', 'detections.bbox_width', 'detections.bbox_height',
     'detections.object_id', 'detections.model_id', 'detections.track_id',
+    'detections.dwell_time', 'detections.filled',
     'lpr.rc_no', 'lpr.track_id', 'lpr.confidence', 'lpr.identity_id',
     'event_triggers',
     'triaged_by', 'triage_notes', 'triage_timestamp', 'ai_insights', 'evidence_path',

@@ -44,6 +44,8 @@ def process_camera_events(events: List[CameraEventRequest]) -> Dict[str, Any]:
             d_object_ids = [d.object_id or 0 for d in detections]
             d_model_ids = [d.model_id or 0 for d in detections]
             d_track_ids = [d.track_id or 0 for d in detections]
+            d_dwell_times = [d.dwell_time or 0.0 for d in detections]
+            d_filleds = [d.filled or 0 for d in detections]
             
             # Extract LPR (License Plate Recognition) data from detections
             lpr_rc_nos = [d.lpr.get("rc_no", "") if d.lpr else "" for d in detections]
@@ -91,6 +93,8 @@ def process_camera_events(events: List[CameraEventRequest]) -> Dict[str, Any]:
                 d_object_ids,
                 d_model_ids,
                 d_track_ids,
+                d_dwell_times,
+                d_filleds,
                 lpr_rc_nos,
                 lpr_track_ids,
                 lpr_confidences,

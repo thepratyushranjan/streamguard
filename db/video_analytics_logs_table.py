@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS video_analytics_logs (
     `detections.object_id` Array(UInt16) DEFAULT [],
     `detections.model_id` Array(UInt8) DEFAULT [],
     `detections.track_id` Array(UInt32) DEFAULT [],
+    `detections.dwell_time` Array(Float32) DEFAULT [],
+    `detections.filled` Array(UInt8) DEFAULT [],
     
     -- LPR (License Plate Recognition) Data
     `lpr.rc_no` Array(String) DEFAULT [],

@@ -95,17 +95,6 @@ class CameraDataTransformer:
             max(self.cam_id_mapping.values(), default=self.CAM_ID_START - 1) + 1
         )
 
-    # ---------- Internal Helpers ----------
-
-    # def _get_or_create_cam_id(self, cam_name: str) -> int:
-    #     """Return integer cam_id, create if not exists."""
-    #     cam_id = self.cam_id_mapping.get(cam_name)
-    #     if cam_id is None:
-    #         cam_id = self._next_id
-    #         self.cam_id_mapping[cam_name] = cam_id
-    #         self._next_id += 1
-    #     return cam_id
-
     @staticmethod
     def _to_unix_timestamp(value: Union[str, int, float]) -> int:
         """Convert ISO-8601 timestamp or raw timestamp to Unix seconds (UTC)."""
@@ -140,6 +129,8 @@ class CameraDataTransformer:
             # Optional detection metadata
             "model_id": det.get("model_id", 0),
             "track_id": det.get("track_id", 0),
+            "dwell_time": det.get("dwell_time", 0.0),
+            "filled": det.get("filled", 0),
             "parent_track_id": det.get("parent_track_id", 0),
             # Optional LPR data
             "lpr": det.get("lpr", {}),
