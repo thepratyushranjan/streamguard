@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+from typing import Literal
 import zipfile
 import logging
 import subprocess
@@ -78,7 +79,7 @@ def convert_image_to_webp(file_path: str) -> str:
         logger.error(f"Image conversion failed for {file_path}: {e}")
     return file_path
 
-def convert_video_to_webm(file_path: str) -> str:
+def convert_video_to_webm_mp4(file_path: str,conversion_type:str) -> str:
     """
     Converts .mp4 and .avi to .webm using ffmpeg.
     """
@@ -86,9 +87,9 @@ def convert_video_to_webm(file_path: str) -> str:
         if not file_path.lower().endswith(('.mp4', '.avi')):
             return file_path
 
-        webm_path = os.path.splitext(file_path)[0] + ".webm"
+        conversion_path = os.path.splitext(file_path)[0] + conversion_type
         
-        logging.info(f"Converting file: {file_path} -> {webm_path}")
+        logging.info(f"Converting file: {file_path} -> {conversion_path}")
 
         command = [
             "ffmpeg", "-y",
@@ -98,7 +99,20 @@ def convert_video_to_webm(file_path: str) -> str:
             "-pix_fmt", "yuv420p",          
             "-an",                           
             "-f", "webm",                    
-            webm_path
+            conversion_path
+        ]
+
+        if conversion_type == ".mp4":
+            command = [
+            "ffmpeg", "-y",
+            "-i", file_path,
+            "-c:v", "libx264",     # H.264 codec
+            "-preset", "medium",
+            "-crf", "23",
+            "-c:a", "aac",         # audio codec
+            "-b:a", "128k",
+            "-pix_fmt", "yuv420p",
+            conversion_path
         ]
         
         result = subprocess.run(
@@ -112,10 +126,10 @@ def convert_video_to_webm(file_path: str) -> str:
             logging.error(f"FFmpeg Failed for {file_path}\nError: {result.stderr}")
             return file_path
 
-        if os.path.exists(webm_path):
+        if os.path.exists(conversion_path):
             os.remove(file_path) 
-            logging.info(f"Conversion Success: {webm_path}")
-            return webm_path
+            logging.info(f"Conversion Success: {conversion_path}")
+            return conversion_path
         else:
             logging.error(f"WebM file was not created for {file_path}")
 
@@ -135,7 +149,7 @@ def upload_single_file(bucket, blob_name, file_path):
         return False
 
 
-def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str,json_data=None,tmp_filename = None):
+def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str,industry:str,json_data=None,tmp_filename = None ):
     """
     1. Unzip
     2. Convert (Images -> WebP, Video -> WebM)
@@ -174,9 +188,11 @@ def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str,
                 ext = os.path.splitext(filename)[1].lower()
 
                 if ext in ['.mp4', '.avi']:
-                    file_path = convert_video_to_webm(file_path)
-                elif ext in ['.jpeg', '.jpg']:
-                    file_path = convert_image_to_webp(file_path)
+                    # conversion_type = ".webm"
+                    conversion_type = ".mp4"
+                    file_path = convert_video_to_webm_mp4(file_path,conversion_type)
+                # elif ext in ['.jpeg', '.jpg']:
+                #     file_path = convert_image_to_webp(file_path)
                 
                 rel_path = os.path.relpath(file_path, extract_path)
                 folder_name = os.path.basename(extract_path)
@@ -201,7 +217,7 @@ def process_and_upload_workflow(zip_file_path: str,TEMP_DIR:str,bucket_name:str,
                     "Content-Type": "application/json"
                 }
                 url = "https://roboiingest.invincibleocean.com/vector"
-                if bucket_name == '697cbadab584b2e17eb86d24':
+                if industry == 'office':
                     url = "https://roboiingest.invincibleocean.com/vector-office"
                 
                 logger.info(f"Calling for AI info endpoint: {url}")

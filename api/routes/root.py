@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 from fastapi import APIRouter
 from core.config import get_settings
 import os
@@ -28,7 +28,8 @@ async def upload_folder(
     background_tasks: BackgroundTasks,
     file_name:str = Form(...),
     file: UploadFile = File(...),
-    json_data: Optional[str] = Form(None)
+    json_data: Optional[str] = Form(None),
+    industry:Literal["oil_and_gas", "office"] = Form(...)
 ):
     if not file.filename.endswith(".zip"):
         raise HTTPException(status_code=400, detail="File must be a .zip")
@@ -52,8 +53,8 @@ async def upload_folder(
     os.makedirs(extract_dir, exist_ok=True)
     tmp_filename =f"events/{file.filename.split(".zip")[0]}" 
 
-    background_tasks.add_task(process_and_upload_workflow, zip_path, extract_dir, file_name,json_data,tmp_filename)
-    # process_and_upload_workflow(zip_path, extract_dir, file_name,json_data,tmp_filename)
+    background_tasks.add_task(process_and_upload_workflow, zip_path, extract_dir, file_name,industry,json_data,tmp_filename)
+    # process_and_upload_workflow(zip_path, extract_dir, file_name,industry,json_data,tmp_filename)
 
     return {
         "status": "success",
